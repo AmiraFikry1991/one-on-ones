@@ -293,6 +293,7 @@ function clean(html){
   const doc=new DOMParser().parseFromString(`<div>${html||""}</div>`,"text/html"), root=doc.body.firstChild;
   const walk=node=>{ [...node.childNodes].forEach(ch=>{
     if (ch.nodeType===3) return;
+    if (ch.nodeType===1 && /^(SCRIPT|STYLE|TEMPLATE|IFRAME|OBJECT|NOSCRIPT)$/.test(ch.tagName)){ ch.remove(); return; }
     if (ch.nodeType!==1 || !ALLOWED.has(ch.tagName)){ if(ch.nodeType===1){ walk(ch); ch.replaceWith(...ch.childNodes); } else ch.remove(); return; }
     [...ch.attributes].forEach(a=>ch.removeAttribute(a.name)); walk(ch); }); };
   walk(root);
@@ -301,6 +302,7 @@ function clean(html){
 }
 function plain(html){
   const d=document.createElement("div"); d.innerHTML=clean(html);
+  d.querySelectorAll("ul,ol").forEach(l=>l.before("\n"));
   d.querySelectorAll("ol").forEach(ol=>[...ol.children].forEach((li,i)=>li.prepend(`${i+1}. `)));
   d.querySelectorAll("ul>li").forEach(li=>li.prepend("• "));
   d.querySelectorAll("br").forEach(b=>b.replaceWith("\n"));
