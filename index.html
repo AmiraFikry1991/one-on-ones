@@ -146,7 +146,7 @@ main{grid-area:main;padding-block:20px 60px;padding-inline:28px;min-width:0}
 .st-parked .num{background:var(--peach);color:var(--peach-ink)}
 .st-action .num{background:var(--lav);color:var(--lav-ink)}
 .t-head{display:flex;align-items:flex-start;gap:8px;min-width:0}
-.t-text{flex:1;min-width:0;border:0;background:transparent;padding:2px 4px;border-radius:6px;resize:none;overflow:hidden;font-weight:600;font-size:15.5px;line-height:1.45;field-sizing:content}
+.t-text{flex:1;min-width:0;padding:2px 4px;border-radius:6px;font-weight:500;font-size:15.5px;line-height:1.45}
 .t-text:focus{outline:none;background:var(--wash)}
 .st-parked .t-text{color:var(--muted)}
 .t-head .tag{margin-top:4px}
@@ -154,9 +154,22 @@ main{grid-area:main;padding-block:20px 60px;padding-inline:28px;min-width:0}
 .line{display:flex;align-items:flex-start;gap:8px;padding:2px 0;border-radius:8px;min-width:0}
 .line.hit{background:#fff6c7;box-shadow:0 0 0 4px #fff6c7}
 .line .tag{margin-top:3px;cursor:pointer}
-.line .txt{flex:1;min-width:0;border:0;background:transparent;padding:1px 4px;border-radius:6px;resize:none;overflow:hidden;line-height:1.45;field-sizing:content}
+.line .txt{flex:1;min-width:0;padding:1px 4px;border-radius:6px;line-height:1.45}
 .line .txt:focus{outline:none;background:var(--wash)}
 .x{border:0;background:none;color:var(--muted);opacity:0;padding:2px 6px;border-radius:6px;flex:none}
+.rich{outline:none;overflow-wrap:anywhere;cursor:text;min-height:1.45em}
+.rich:focus{background:var(--wash);box-shadow:0 0 0 1px var(--lav-2)}
+.rich b,.rich strong{font-weight:700}
+.rich ul,.rich ol{margin:2px 0;padding-left:22px}
+.rich li{margin:1px 0}
+.rich p,.rich div{margin:0}
+.rich:empty::before{content:attr(data-ph);color:var(--muted)}
+.qitem .rich{flex:1;padding:1px 4px;border-radius:6px}
+.fmt{position:fixed;z-index:40;display:flex;gap:2px;padding:3px;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 8px 24px rgba(60,40,110,.14)}
+.fmt button{border:0;background:none;border-radius:7px;min-width:30px;height:28px;padding:0 7px;font-size:13.5px;color:var(--ink)}
+.fmt button:hover{background:var(--wash)}
+.fmt button[aria-pressed="true"]{background:var(--lav);color:var(--lav-ink)}
+.fmt .sep{width:1px;background:var(--line);margin:4px 2px}
 .topic:hover .x,.qitem:hover .x,.line:hover .x,.x:focus{opacity:1}
 .x:hover{color:var(--peach-ink)}
 .act{display:grid;grid-template-columns:auto 18px minmax(0,1fr) auto auto 24px;gap:8px;align-items:center;padding:2px 0;border-radius:8px}
@@ -256,6 +269,14 @@ body.locked .top, body.locked .app{display:none}
   <div class="lock-err" id="lockErr"></div>
   <button class="btn primary" type="submit" id="lockGo">Sign in</button>
 </form></section>
+<div class="fmt" id="fmt" hidden role="toolbar" aria-label="Text formatting">
+  <button type="button" data-cmd="bold" title="Bold (Ctrl+B)" aria-label="Bold"><b>B</b></button>
+  <button type="button" data-cmd="italic" title="Italic (Ctrl+I)" aria-label="Italic"><i style="font-family:Georgia,serif">I</i></button>
+  <button type="button" data-cmd="underline" title="Underline (Ctrl+U)" aria-label="Underline"><u>U</u></button>
+  <span class="sep"></span>
+  <button type="button" data-cmd="insertUnorderedList" title="Bulleted list" aria-label="Bulleted list">• List</button>
+  <button type="button" data-cmd="insertOrderedList" title="Numbered list" aria-label="Numbered list">1. List</button>
+</div>
 <div class="toast" id="toast" hidden></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
@@ -266,6 +287,28 @@ const $ = s => document.querySelector(s);
 const uid = () => Math.random().toString(36).slice(2,10) + Date.now().toString(36).slice(-4);
 const todayISO = () => { const d=new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset()); return d.toISOString().slice(0,10); };
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+/* rich text: stored as a small, sanitized HTML subset */
+const ALLOWED = new Set(["B","STRONG","I","EM","U","BR","UL","OL","LI","DIV","P"]);
+function clean(html){
+  const doc=new DOMParser().parseFromString(`<div>${html||""}</div>`,"text/html"), root=doc.body.firstChild;
+  const walk=node=>{ [...node.childNodes].forEach(ch=>{
+    if (ch.nodeType===3) return;
+    if (ch.nodeType!==1 || !ALLOWED.has(ch.tagName)){ if(ch.nodeType===1){ walk(ch); ch.replaceWith(...ch.childNodes); } else ch.remove(); return; }
+    [...ch.attributes].forEach(a=>ch.removeAttribute(a.name)); walk(ch); }); };
+  walk(root);
+  let out=root.innerHTML.replace(/(<br>)+$/,"");
+  return out.replace(/^(<div><br><\/div>)+|(<div><br><\/div>)+$/g,"");
+}
+function plain(html){
+  const d=document.createElement("div"); d.innerHTML=clean(html);
+  d.querySelectorAll("ol").forEach(ol=>[...ol.children].forEach((li,i)=>li.prepend(`${i+1}. `)));
+  d.querySelectorAll("ul>li").forEach(li=>li.prepend("• "));
+  d.querySelectorAll("br").forEach(b=>b.replaceWith("\n"));
+  d.querySelectorAll("li,div,p").forEach(b=>{ b.append("\n"); });
+  return d.textContent.replace(/\n{2,}/g,"\n").trim();
+}
+const oneLine = h => plain(h).replace(/\s*\n\s*/g," · ");
+const richEl = (cls,k,act,attrs,html,ph) => `<div class="${cls} rich" contenteditable="true" spellcheck="true" role="textbox" aria-multiline="true" data-k="${k}" data-act="${act}" ${attrs} data-ph="${ph}">${clean(html)}</div>`;
 const fmtDate = iso => iso ? new Date(iso+"T12:00:00").toLocaleDateString(undefined,{day:"numeric",month:"short",year:"numeric"}) : "";
 const fmtShort = iso => iso ? new Date(iso+"T12:00:00").toLocaleDateString(undefined,{weekday:"short",day:"numeric",month:"short"}) : "";
 const fmtMonth = iso => new Date(iso+"T12:00:00").toLocaleDateString(undefined,{month:"long",year:"numeric"});
@@ -348,7 +391,7 @@ async function loadAll(){
   if (!sel.person || !people[sel.person]){ const first=Object.keys(people)[0]; sel.person=first||null; sel.meeting=null; }
   setStatus("All changes saved");
   const ae=document.activeElement;
-  if (ae && ae.matches && ae.matches("textarea, input.txt, .inline-add input, .add-topic input, #q, .addp input")){ renderPeople(); return; }
+  if (ae && ae.matches && ae.matches(".rich, textarea, input.txt, .inline-add input, .add-topic input, #q, .addp input")){ renderPeople(); return; }
   render();
 }
 
@@ -370,7 +413,7 @@ function render(){
   const ae=document.activeElement, focus = ae && ae.dataset ? ae.dataset.k : null, pos = focus ? ae.selectionStart : null;
   renderMain(); renderPeople();
   const want = adding ? `add:${adding.tid}` : focus;
-  if (want){ const el=document.querySelector(`[data-k="${CSS.escape(want)}"]`); if(el){ el.focus(); try{ if(!adding && pos!=null) el.setSelectionRange(pos,pos);}catch(e){} } }
+  if (want){ const el=document.querySelector(`[data-k="${CSS.escape(want)}"]`); if(el){ el.focus(); if(el.isContentEditable){ const r=document.createRange(); r.selectNodeContents(el); r.collapse(false); const s=getSelection(); s.removeAllRanges(); s.addRange(r); } else { try{ if(!adding && pos!=null) el.setSelectionRange(pos,pos);}catch(e){} } } }
 }
 function renderPeople(){
   const ids=Object.keys(people).sort((a,b)=>people[a].name.localeCompare(people[b].name));
@@ -394,11 +437,11 @@ function historyHTML(pid){
     html+=`<button class="tl-btn s-${st}" data-meeting="${id}" aria-current="${id===sel.meeting}">
       <div class="tl-date">${esc(fmtShort(m.date))}</div>
       <div class="tl-sum">${st!=="held"?`<span class="tag t-${st}">${MSTATUS[st]}</span>`:""}${skipped?"":`${ag} agreed · ${acts.length} action${acts.length===1?"":"s"}${open?`, ${open} open`:""}`}</div>
-      ${skipped?(m.reason?`<div class="tl-peek">${esc(m.reason)}</div>`:""):(first?`<div class="tl-peek">${esc(first.text)}</div>`:"")}</button>`;
+      ${skipped?(m.reason?`<div class="tl-peek">${esc(m.reason)}</div>`:""):(first?`<div class="tl-peek">${esc(oneLine(first.text))}</div>`:"")}</button>`;
   }
   return html+`</div>`;
 }
-const isHit = (text,id) => (hitId && id===hitId) || (hitTerm && String(text||"").toLowerCase().includes(hitTerm));
+const isHit = (text,id) => (hitId && id===hitId) || (hitTerm && plain(text).toLowerCase().includes(hitTerm));
 const ownerLabel = (o,p) => o==="me" ? "Me" : o==="both" ? "Both" : (p.name||"Them").split(" ")[0];
 function actionRow(mid,a,p,opts={}){
   const late = a.due && !a.done && a.due < todayISO();
@@ -415,7 +458,7 @@ function actionRow(mid,a,p,opts={}){
 function bodyHTML(tid,c,p,showPark){
   let h = c.outcomes.map(o=>`<div class="line ${isHit(o.text,o.id)?"hit":""}">
       <button class="tag t-${o.kind}" data-act="okind" data-tid="${tid}" data-id="${o.id}" title="Switch between Agreed and Note">${KIND[o.kind]}</button>
-      <textarea class="txt" rows="1" data-k="o:${o.id}" data-act="oedit" data-tid="${tid}" data-id="${o.id}">${esc(o.text)}</textarea>
+      ${richEl("txt","o:"+o.id,"oedit",`data-tid="${tid}" data-id="${o.id}"`,o.text,"Write it here")}
       <button class="x" data-act="odel" data-tid="${tid}" data-id="${o.id}" aria-label="Remove">✕</button></div>`).join("");
   h += c.actions.map(a=>actionRow(sel.meeting,a,p)).join("");
   if (adding && adding.tid===tid){
@@ -442,7 +485,7 @@ function renderMain(){
     <div class="actions"><button class="btn primary" data-act="newMeeting">Start this week's 1:1</button><button class="btn" data-act="missedWeek">Log a missed week</button>
     <button class="btn ghost danger" data-act="delPerson">${confirmDel==="p:"+sel.person?"Click again to remove "+esc(p.name.split(" ")[0]):"Remove person"}</button></div></div>
     <section class="queue"><h2>For next 1:1 <span class="hint">Jot topics during the week. They become the agenda when you start the next 1:1.</span></h2>
-      <ul class="qlist">${queue.map(q=>`<li class="qitem ${isHit(q.text,q.id)?"hit":""}"><textarea class="txt" rows="1" style="flex:1;border:0;background:transparent;resize:none;field-sizing:content;padding:1px 4px" data-k="q:${q.id}" data-act="qedit" data-id="${q.id}">${esc(q.text)}</textarea><button class="x" data-act="qdel" data-id="${q.id}" aria-label="Remove">✕</button></li>`).join("") || `<li class="empty">Nothing queued yet.</li>`}</ul>
+      <ul class="qlist">${queue.map(q=>`<li class="qitem ${isHit(q.text,q.id)?"hit":""}">${richEl("","q:"+q.id,"qedit",`data-id="${q.id}"`,q.text,"Topic")}<button class="x" data-act="qdel" data-id="${q.id}" aria-label="Remove">✕</button></li>`).join("") || `<li class="empty">Nothing queued yet.</li>`}</ul>
       <form class="inline-add" data-addq><input class="field" data-k="addq" placeholder="Add a topic for next time" autocomplete="off"><button class="btn" type="submit">Add</button></form></section>`;
   if (m){
     const carry=openActionsBefore(sel.person,m.date,sel.meeting), isLatest=list[0]&&list[0][0]===sel.meeting;
@@ -460,14 +503,14 @@ function renderMain(){
       <section class="topics" aria-label="Agenda">
         ${m.topics.map((t,i)=>{ const st=topicStatus(t); return `<div class="topic st-${st} ${isHit(t.text,t.id)&&!t.outcomes.some(o=>isHit(o.text,o.id))?"hit":""}">
           <span class="num">${i+1}</span>
-          <div class="t-head"><textarea class="t-text" rows="1" data-k="t:${t.id}" data-act="tedit" data-id="${t.id}" aria-label="Agenda item">${esc(t.text)}</textarea>
+          <div class="t-head">${richEl("t-text","t:"+t.id,"tedit",`data-id="${t.id}" aria-label="Agenda item"`,t.text,"Agenda item")}
             <span class="tag ${STATUS_TAG[st]}">${STATUS_LABEL[st]}</span>
             <button class="x" data-act="tdel" data-id="${t.id}" aria-label="Remove agenda item">✕</button></div>
           <div class="t-body">${bodyHTML(t.id,t,p,true)}</div></div>`; }).join("") || `<div class="topic"><span></span><div class="empty">No agenda yet. Add the first item below.</div></div>`}
         <form class="add-topic" data-addtopic><input class="field" data-k="addtopic" placeholder="Add an agenda item" autocomplete="off"><button class="btn" type="submit">Add</button></form>
       </section>
       ${isLatest&&carry.length?`<section class="carry"><h3 class="block-h">Still open from earlier <span class="hint">${carry.length} action item${carry.length===1?"":"s"}</span></h3>
-        ${carry.map(c=>actionRow(c.mid,c.a,p,{from:c.m.date,topic:c.t&&c.t.text.slice(0,60)})).join("")}</section>`:""}
+        ${carry.map(c=>actionRow(c.mid,c.a,p,{from:c.m.date,topic:c.t&&oneLine(c.t.text).slice(0,60)})).join("")}</section>`:""}
       <section class="general"><h3 class="block-h">Also discussed <span class="hint">Anything outside the agenda</span></h3>
         ${bodyHTML("general",m.general,p,false)}</section>
     </article>`;
@@ -478,22 +521,23 @@ function renderMain(){
 }
 function recapText(p,m){
   const L=[`1:1 with ${p.name} on ${fmtDate(m.date)}${mstat(m)!=="held"?" ("+MSTATUS[mstat(m)]+(m.reason?": "+m.reason:"")+")":""}`,""];
-  const body=(c)=>{ c.outcomes.forEach(o=>L.push(`   ${KIND[o.kind]}: ${o.text}`)); c.actions.forEach(a=>L.push(`   Action: ${a.text} (${ownerLabel(a.owner,p)}${a.due?", due "+fmtDate(a.due):""}${a.done?", done":""})`)); };
-  m.topics.forEach((t,i)=>{ L.push(`${i+1}. ${t.text}${t.parked?" (parked for next 1:1)":""}`); body(t); L.push(""); });
+  const ind=(t,pad)=>plain(t).split("\n").join("\n"+pad);
+  const body=(c)=>{ c.outcomes.forEach(o=>L.push(`   ${KIND[o.kind]}: ${ind(o.text,"      ")}`)); c.actions.forEach(a=>L.push(`   Action: ${a.text} (${ownerLabel(a.owner,p)}${a.due?", due "+fmtDate(a.due):""}${a.done?", done":""})`)); };
+  m.topics.forEach((t,i)=>{ L.push(`${i+1}. ${ind(t.text,"   ")}${t.parked?" (parked for next 1:1)":""}`); body(t); L.push(""); });
   if (m.general.outcomes.length||m.general.actions.length){ L.push("Also discussed"); body(m.general); }
   return L.join("\n").trim();
 }
 
 /* ---------- search ---------- */
 function snippet(text,term){
-  const t=String(text), i=t.toLowerCase().indexOf(term); if(i<0) return esc(t);
+  const t=oneLine(text), i=t.toLowerCase().indexOf(term); if(i<0) return esc(t);
   const s=Math.max(0,i-50), e=Math.min(t.length,i+term.length+70);
   return (s?"…":"")+esc(t.slice(s,i))+"<mark>"+esc(t.slice(i,i+term.length))+"</mark>"+esc(t.slice(i+term.length,e))+(e<t.length?"…":"");
 }
 function runSearch(){
   const box=$("#results"), term=$("#q").value.trim().toLowerCase();
   if (term.length<2){ box.hidden=true; box.innerHTML=""; return; }
-  const hits=[], has=s=>String(s||"").toLowerCase().includes(term);
+  const hits=[], has=s=>plain(s).toLowerCase().includes(term);
   for (const [mid,m] of Object.entries(meetings)){
     if(!people[m.personId]) continue;
     const add=(tag,id,text,ctx)=>hits.push({pid:m.personId,mid,date:m.date,tag,id,text,ctx});
@@ -515,7 +559,7 @@ function runSearch(){
   box.innerHTML = hits.length
     ? `<div class="res-head">${hits.length} match${hits.length===1?"":"es"} across all 1:1s</div>`+hits.slice(0,60).map(h=>`<button class="res" data-hit='${esc(JSON.stringify({pid:h.pid,mid:h.mid,id:h.id}))}'>
         <div class="r1"><span class="who">${esc(people[h.pid].name)}</span>${h.date?`<span class="when">${esc(fmtDate(h.date))}</span>`:""}${TAGS[h.tag]?`<span class="tag t-${h.tag}">${TAGS[h.tag]}</span>`:""}</div>
-        <div class="snip">${snippet(h.text,term)}</div>${h.ctx?`<div class="hint" style="margin-top:2px">Under: ${esc(h.ctx.slice(0,80))}</div>`:""}</button>`).join("")
+        <div class="snip">${snippet(h.text,term)}</div>${h.ctx?`<div class="hint" style="margin-top:2px">Under: ${esc(oneLine(h.ctx).slice(0,80))}</div>`:""}</button>`).join("")
     : `<div class="res-head">No matches for "${esc(term)}".</div>`;
 }
 $("#q").addEventListener("input", runSearch);
@@ -589,20 +633,21 @@ document.addEventListener("change", e=>{
 });
 document.addEventListener("input", e=>{
   const t=e.target, act=t.dataset.act; if(!act) return;
-  if (act==="tedit"){ const x=M().topics.find(y=>y.id===t.dataset.id); if(x){ x.text=t.value; saveM(); } }
-  else if (act==="oedit"){ const o=getCont(M(),t.dataset.tid).outcomes.find(y=>y.id===t.dataset.id); if(o){ o.text=t.value; saveM(); } }
-  else if (act==="qedit"){ const q=(people[sel.person].queue||[]).find(y=>y.id===t.dataset.id); if(q){ q.text=t.value; schedule("people",sel.person); } }
+  if (act==="tedit"){ const x=M().topics.find(y=>y.id===t.dataset.id); if(x){ x.text=clean(t.innerHTML); saveM(); } }
+  else if (act==="oedit"){ const o=getCont(M(),t.dataset.tid).outcomes.find(y=>y.id===t.dataset.id); if(o){ o.text=clean(t.innerHTML); saveM(); } }
+  else if (act==="qedit"){ const q=(people[sel.person].queue||[]).find(y=>y.id===t.dataset.id); if(q){ q.text=clean(t.innerHTML); schedule("people",sel.person); } }
   else if (act==="reason"){ M().reason=t.value; saveM(); }
   else if (act==="aedit"){ const f=findAction(t.dataset.mid,t.dataset.id); if(f){ f.a.text=t.value; schedule("meetings",t.dataset.mid,700); } }
 });
 document.addEventListener("keydown", e=>{
-  if (e.key==="Enter" && !e.shiftKey && e.target.matches("textarea")){ e.preventDefault(); e.target.blur(); }
+  if (e.key==="Escape" && e.target.matches(".rich")){ e.target.blur(); }
   if (e.key==="Escape" && adding && e.target.closest(".inline-add")){ adding=null; render(); }
 });
 document.addEventListener("submit", e=>{
   const form=e.target; if (form.id==="addPerson"||form.id==="lockForm") return;
   e.preventDefault();
-  const input=form.querySelector("input.field"), text=input ? input.value.trim() : ""; if(!text) return;
+  const input=form.querySelector("input.field"), raw=input ? input.value.trim() : ""; if(!raw) return;
+  const text = form.dataset.addto && adding && adding.kind==="action" ? raw : esc(raw);
   if (form.hasAttribute("data-addq")){ addToQueue(text); input.value=""; render(); document.querySelector('[data-k="addq"]')?.focus(); return; }
   if (form.hasAttribute("data-addtopic")){ M().topics.push({id:uid(),text,parked:false,outcomes:[],actions:[]}); saveM(); input.value=""; render(); document.querySelector('[data-k="addtopic"]')?.focus(); return; }
   if (form.dataset.addto){
@@ -617,6 +662,36 @@ $("#addPerson").addEventListener("submit", e=>{
   const id=uid(); people[id]={name, role:$("#newRole").value.trim(), queue:[], createdAt:Date.now()};
   schedule("people",id,0); sel={person:id,meeting:null}; clearHit(); remember();
   $("#newName").value=""; $("#newRole").value=""; render();
+});
+
+/* ---------- formatting toolbar ---------- */
+const fmt=$("#fmt");
+function placeFmt(){
+  const el=document.activeElement;
+  if (!el || !el.classList || !el.classList.contains("rich")){ fmt.hidden=true; return; }
+  fmt.hidden=false;
+  const r=el.getBoundingClientRect(), w=fmt.offsetWidth, h=fmt.offsetHeight;
+  let top=r.top-h-6; if (top<64) top=r.bottom+6;
+  const left=Math.max(8,Math.min(r.left, innerWidth-w-8));
+  fmt.style.top=top+"px"; fmt.style.left=left+"px";
+  fmt.querySelectorAll("[data-cmd]").forEach(b=>{ let on=false; try{ on=document.queryCommandState(b.dataset.cmd); }catch(e){} b.setAttribute("aria-pressed", on); });
+}
+document.addEventListener("focusin", placeFmt);
+document.addEventListener("focusout", ()=>setTimeout(placeFmt,0));
+document.addEventListener("selectionchange", ()=>{ if(!fmt.hidden) placeFmt(); });
+addEventListener("scroll", placeFmt, true); addEventListener("resize", placeFmt);
+fmt.addEventListener("mousedown", e=>e.preventDefault());
+fmt.addEventListener("click", e=>{
+  const b=e.target.closest("[data-cmd]"); if(!b) return;
+  const el=document.activeElement; if(!el || !el.classList.contains("rich")) return;
+  document.execCommand(b.dataset.cmd,false,null);
+  el.dispatchEvent(new Event("input",{bubbles:true})); placeFmt();
+});
+document.addEventListener("paste", e=>{
+  if (!e.target.closest || !e.target.closest(".rich")) return;
+  e.preventDefault();
+  const t=(e.clipboardData||window.clipboardData).getData("text/plain");
+  document.execCommand("insertText",false,t);
 });
 
 /* ---------- sign in ---------- */
