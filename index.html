@@ -199,6 +199,20 @@ main{grid-area:main;padding-block:20px 60px;padding-inline:28px;min-width:0}
 .rbtn.r-off_track[aria-pressed="true"]{background:var(--rose);color:var(--rose-ink);border-color:#f2c4d6}
 .rbtn.r-na[aria-pressed="true"]{background:#efeef4;color:var(--ink);border-color:#d9d6e3}
 .rate-note{grid-column:1 / -1;padding:6px 10px;font-size:13px}
+.t-oneoff{background:#e7f1ff;color:#2f5bbf}
+.oo-task{font-weight:500}
+.oo-task .rich{flex:1;min-width:0;padding:2px 4px;border-radius:6px}
+.oo-meta{grid-column:1 / -1;display:flex;gap:6px 12px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.oo-meta input[type=date],.oo-meta select,.oo-add-row input[type=date],.oo-add-row select{border:1px solid var(--line);border-radius:8px;padding:2px 6px;background:#fff;font-size:12px}
+.oo-meta input[type=date],.oo-add-row input[type=date]{font-family:var(--f-mono);font-size:11.5px}
+.oo-meta select.w-high{background:#fff1c9;color:#8a6200;border-color:#f1dc8e}
+.rate-row:hover .x{opacity:1}
+.oo-sub{padding:8px 16px;background:var(--wash);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);border-top:1px solid var(--line)}
+.oo-add{display:flex;flex-direction:column;gap:6px;padding:12px 16px;background:var(--wash);border-top:1px solid var(--line)}
+.oo-add .rich{background:#fff;padding:7px 10px;min-height:2.3em}
+.oo-add-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:12.5px;color:var(--muted)}
+.oo-add-row .btn{margin-left:auto}
+.oo-heat td{background:#fafcff}
 .heat-wrap{border:1px solid var(--line);border-radius:16px;overflow-x:auto;background:#fff}
 .heat{border-collapse:collapse;width:100%;min-width:640px;font-size:13px}
 .heat th{font-size:10.5px;font-weight:700;color:var(--muted);padding:8px 4px;background:var(--wash);border-bottom:1px solid var(--line);white-space:nowrap;text-align:center}
@@ -848,6 +862,11 @@ function weekScore(p,W){
     if (d.status!=="paused" || e) due++;
     if (rated(e)){ sum+=weightOf(d)*PTS[e.health]; wsum+=weightOf(d); n++; }
   }
+  for (const o of (p.oneoffs||[])){
+    if (o.week!==W || o.result==="na") continue;
+    due++;
+    if (o.result && o.result!=="na"){ sum+=weightOf(o)*PTS[o.result]; wsum+=weightOf(o); n++; }
+  }
   return { score: wsum ? Math.round(sum/wsum*100) : null, rated:n, due };
 }
 const band = v => v==null ? "none" : v>=80 ? "good" : v>=60 ? "mid" : "low";
@@ -872,7 +891,6 @@ function progressHTML(p){
   const avg = withData.length ? Math.round(withData.reduce((a,w)=>a+w.score,0)/withData.length) : null;
   const ws=weekScore(p,W);
   const first=esc((p.name||"").split(" ")[0]);
-  if (!active.length) return `<div class="welcome"><h1>No tasks to rate yet</h1><p>Add ${first}'s tasks in the Tasks tab first. Each week you'll rate them here and the score builds automatically.</p></div>`;
   let h=`<section class="progress">
     <div class="score-cards">
       <div class="scard ${band(ws.score)}"><div class="slabel">Week of ${esc(fmtDM(W))}</div><div class="sval">${ws.score==null?"–":ws.score+"%"}</div><div class="ssub">${ws.rated} of ${ws.due} tasks rated</div></div>
@@ -886,7 +904,8 @@ function progressHTML(p){
       ${W!==curW?`<button class="chip sm" data-act="wk" data-dir="0">Back to this week</button>`:""}
       <span class="hint">On track = 100%, Needs attention = 50%, Off track = 0%. High importance counts double. Not applicable is left out.</span>
     </div>
-    <div class="rate-list">`;
+    <h3 class="block-h">Regular tasks</h3>
+    <div class="rate-list">${active.length?"":`<div class="empty" style="padding:12px 16px">No regular tasks yet. Add ${first}'s tasks in the Tasks tab.</div>`}`;
   h += active.map(d=>{
     const e=weekEntry(d,W), cur=e?e.health:"", {title}=dutyTitle(d.text);
     const btn=(k,label)=>`<button class="rbtn r-${k}" data-act="wrate" data-id="${d.id}" data-h="${k}" aria-pressed="${cur===k}">${label}</button>`;
@@ -896,7 +915,38 @@ function progressHTML(p){
       <input class="field rate-note" data-k="wn:${d.id}" data-act="wnote" data-id="${d.id}" value="${esc(e?plain(e.note):"")}" placeholder="Note for this week (optional)">
     </div>`;
   }).join("");
-  h += `</div>
+  h += `</div>`;
+  // ----- one-off tasks
+  const OO={on_track:"Done", watch:"Done late", off_track:"Not done", na:"Cancelled"};
+  const weekOO=(p.oneoffs||[]).filter(o=>o.week===W);
+  const carried = W===curW ? (p.oneoffs||[]).filter(o=>o.week<W && !o.result) : [];
+  const ooRow=(o,carry)=>{
+    const late = !o.result && o.due && o.due<today;
+    const btn=(k)=>`<button class="rbtn r-${k}" data-act="oorate" data-id="${o.id}" data-h="${k}" aria-pressed="${o.result===k}">${OO[k]}</button>`;
+    return `<div class="rate-row oo ${o.result?"r-"+o.result:""}">
+      <div class="rate-task oo-task">${richEl("","oo:"+o.id,"ooedit",`data-id="${o.id}" aria-label="One-off task"`,o.text,"Describe the task")}</div>
+      <div class="rate-btns" role="group" aria-label="Result">${btn("on_track")}${btn("watch")}${btn("off_track")}${btn("na")}</div>
+      <div class="oo-meta">
+        <span>Due <input type="date" data-act="oodue" data-id="${o.id}" value="${esc(o.due||"")}" aria-label="Due date"></span>
+        <select data-act="ooweight" data-id="${o.id}" class="${o.weight==="high"?"w-high":""}" aria-label="Importance"><option value="normal" ${o.weight!=="high"?"selected":""}>Normal importance</option><option value="high" ${o.weight==="high"?"selected":""}>★ High importance</option></select>
+        ${late?`<span class="tag t-note">Overdue</span>`:""}${carry?`<span class="tag t-open">From week of ${esc(fmtDM(o.week))}</span>`:""}
+        <button class="x" data-act="oodel" data-id="${o.id}" aria-label="Remove one-off task">✕ Remove</button>
+      </div>
+      <input class="field rate-note" data-k="on:${o.id}" data-act="oonote" data-id="${o.id}" value="${esc(plain(o.note||""))}" placeholder="Note (optional)">
+    </div>`;
+  };
+  h += `<h3 class="block-h">One-off tasks <span class="hint">Ad-hoc tasks for this week. Done = 100%, Done late = 50%, Not done = 0%; Cancelled is left out.</span></h3>
+    <div class="rate-list">
+      ${weekOO.map(o=>ooRow(o,false)).join("")}
+      ${carried.length?`<div class="oo-sub">Still open from earlier weeks</div>${carried.map(o=>ooRow(o,true)).join("")}`:""}
+      ${!weekOO.length&&!carried.length?`<div class="empty" style="padding:12px 16px">No one-off tasks for this week.</div>`:""}
+      <div class="oo-add">
+        <div class="field rich" contenteditable="true" role="textbox" aria-multiline="true" aria-label="New one-off task" data-k="ooadd" data-ph="Add a one-off task, e.g. Prepare offer letter for new Cruise Manager"></div>
+        <span class="oo-add-row">Due <input type="date" id="oodue" value="${esc(addDays(W,4))}" aria-label="Due date">
+          <select id="ooweight" aria-label="Importance"><option value="normal">Normal importance</option><option value="high">★ High importance</option></select>
+          <button class="btn primary" data-act="ooadd">Add</button></span>
+      </div>
+    </div>
     <h3 class="block-h">Last 13 weeks by task <span class="hint">Each square is a week; hover for details</span></h3>
     <div class="heat-wrap"><table class="heat"><thead><tr><th>Task</th>${weeks.map(w=>`<th title="Week of ${esc(fmtDM(w.W))}">${w.current?"Now":esc(fmtDM(w.W).split(" ")[0])}</th>`).join("")}<th>Avg</th></tr></thead><tbody>`;
   h += active.map(d=>{
@@ -906,6 +956,19 @@ function progressHTML(p){
     const a=n?Math.round(s/n*100):null;
     return `<tr><td class="ht-name">${esc(dutyTitle(d.text).title)}${d.weight==="high"?" ★":""}</td>${cells}<td class="ht-avg ${band(a)}">${a==null?"–":a+"%"}</td></tr>`;
   }).join("");
+  if ((p.oneoffs||[]).length){
+    let s2=0,w2=0;
+    const cells=weeks.map(w=>{
+      const os=(p.oneoffs||[]).filter(o=>o.week===w.W && o.result && o.result!=="na");
+      let s=0,ww=0; os.forEach(o=>{ s+=weightOf(o)*PTS[o.result]; ww+=weightOf(o); }); s2+=s; w2+=ww;
+      const total=(p.oneoffs||[]).filter(o=>o.week===w.W).length;
+      if (!ww) return `<td><span class="hc ${total?"h-unset":""}" title="Week of ${esc(fmtDM(w.W))}: ${total?total+" one-off task(s), not rated":"no one-off tasks"}"></span></td>`;
+      const v=Math.round(s/ww*100), k=v>=80?"on_track":v>=50?"watch":"off_track";
+      return `<td><span class="hc h-${k}" title="Week of ${esc(fmtDM(w.W))}: ${os.length} one-off task(s), ${v}%"></span></td>`;
+    }).join("");
+    const a=w2?Math.round(s2/w2*100):null;
+    h += `<tr class="oo-heat"><td class="ht-name">One-off tasks</td>${cells}<td class="ht-avg ${band(a)}">${a==null?"–":a+"%"}</td></tr>`;
+  }
   h += `</tbody></table></div>
     <div class="legend"><span><i class="hc h-on_track"></i>On track</span><span><i class="hc h-watch"></i>Needs attention</span><span><i class="hc h-off_track"></i>Off track</span><span><i class="hc h-na"></i>N/A</span><span><i class="hc"></i>Not rated</span></div>
   </section>`;
@@ -1022,13 +1085,14 @@ function runSearch(){
   }
   for (const [tid2,tm] of Object.entries(team)){
     if (has(tm.name)) hits.push({pid:tid2,mid:null,date:"",tag:"person",id:null,text:tm.name,area:"team",who:tm.name});
+    (tm.oneoffs||[]).forEach(o=>{ if(has(o.text)||has(o.note)) hits.push({pid:tid2,mid:null,date:o.week||"",tag:"oneoff",id:o.id,text:o.text,area:"team",who:tm.name,week:o.week}); });
     (tm.duties||[]).forEach(d=>{ if(has(d.text)||has(d.track)||(d.log||[]).some(l=>has(l.note))) hits.push({pid:tid2,mid:null,date:"",tag:"duty",id:d.id,text:d.text,area:"team",who:tm.name}); });
   }
   hits.sort((a,b)=>(b.date||"9999").localeCompare(a.date||"9999"));
-  const TAGS={agenda:"Agenda",agreed:"Agreed",note:"Note",action:"Action",queue:"For next 1:1",duty:"Responsibility"};
+  const TAGS={agenda:"Agenda",agreed:"Agreed",note:"Note",action:"Action",queue:"For next 1:1",duty:"Task",oneoff:"One-off task"};
   box.hidden=false;
   box.innerHTML = hits.length
-    ? `<div class="res-head">${hits.length} match${hits.length===1?"":"es"} across all 1:1s</div>`+hits.slice(0,60).map(h=>`<button class="res" data-hit='${esc(JSON.stringify({pid:h.pid,mid:h.mid,id:h.id,area:h.area||"ones"}))}'>
+    ? `<div class="res-head">${hits.length} match${hits.length===1?"":"es"} across all 1:1s</div>`+hits.slice(0,60).map(h=>`<button class="res" data-hit='${esc(JSON.stringify({pid:h.pid,mid:h.mid,id:h.id,area:h.area||"ones",week:h.week||null}))}'>
         <div class="r1"><span class="who">${esc(h.who||(people[h.pid]||{}).name||"")}</span>${h.date?`<span class="when">${esc(fmtDate(h.date))}</span>`:""}${TAGS[h.tag]?`<span class="tag t-${h.tag}">${TAGS[h.tag]}</span>`:""}</div>
         <div class="snip">${snippet(h.text,term)}</div>${h.ctx?`<div class="hint" style="margin-top:2px">Under: ${esc(oneLine(h.ctx).slice(0,80))}</div>`:""}</button>`).join("")
     : `<div class="res-head">No matches for "${esc(term)}".</div>`;
@@ -1046,7 +1110,7 @@ function addToQueue(text){ const p=people[sel.person]; p.queue ||= []; if(!p.que
 
 document.addEventListener("click", async e=>{
   const hb=e.target.closest("[data-hit]");
-  if (hb){ const h=JSON.parse(hb.dataset.hit); if (h.area==="team"){ sel.area="team"; sel.member=h.pid; sel.mtab="tasks"; sel.dfilter="all"; openDuty=h.id; } else { sel.area="ones"; sel.person=h.pid; sel.meeting=h.mid; } hitTerm=$("#q").value.trim().toLowerCase(); hitId=h.id; adding=null;
+  if (hb){ const h=JSON.parse(hb.dataset.hit); if (h.area==="team"){ sel.area="team"; sel.member=h.pid; sel.mtab=h.week?"progress":"tasks"; sel.week=h.week||null; sel.dfilter="all"; openDuty=h.id; } else { sel.area="ones"; sel.person=h.pid; sel.meeting=h.mid; } hitTerm=$("#q").value.trim().toLowerCase(); hitId=h.id; adding=null;
     $("#results").hidden=true; confirmDel=null; recapOpen=false; remember(); render();
     const el=document.querySelector(".hit"); if(el) el.scrollIntoView({block:"center",behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"}); return; }
   const ab=e.target.closest("[data-area]"); if(ab){ sel.area=ab.dataset.area; confirmDel=null; adding=null; clearHit(); remember(); render(); return; }
@@ -1055,7 +1119,7 @@ document.addEventListener("click", async e=>{
   const mb=e.target.closest("[data-meeting]"); if(mb){ sel.meeting=mb.dataset.meeting; sel.tab="ones"; confirmDel=null; recapOpen=false; adding=null; clearHit(); remember(); render(); if(innerWidth<=760) $("#main").scrollIntoView({block:"start"}); return; }
   const b=e.target.closest("[data-act]"); if(!b) return;
   const act=b.dataset.act, id=b.dataset.id, tid=b.dataset.tid, mid=b.dataset.mid;
-  if (act!=="delPerson" && act!=="delMeeting" && act!=="ddel" && act!=="delMember" && act!=="logdel") confirmDel=null;
+  if (act!=="delPerson" && act!=="delMeeting" && act!=="ddel" && act!=="delMember" && act!=="logdel" && act!=="oodel") confirmDel=null;
   if (act==="startAdd"){ adding={tid,kind:b.dataset.kind}; render(); }
   else if (act==="cancelAdd"){ adding=null; render(); }
   else if (act==="okind"){ const o=getCont(M(),tid).outcomes.find(x=>x.id===id); o.kind=o.kind==="agreed"?"note":"agreed"; saveM(); render(); }
@@ -1070,6 +1134,18 @@ document.addEventListener("click", async e=>{
     if (e) e.health = (e.health===h ? "unset" : h);
     else d.log.push({id:uid(), date:dateForWeek(W), health:h, note:"", at:Date.now()});
     syncFromLog(d); saveDO(); render();
+  }
+  else if (act==="ooadd"){
+    const p=DO(), ed=document.querySelector("[data-k='ooadd']"), html=clean(ed?.innerHTML||"");
+    if (!plain(html)){ ed?.focus(); return; }
+    const W=sel.week?weekStart(sel.week):weekStart(todayISO());
+    p.oneoffs ||= []; p.oneoffs.push({id:uid(), week:W, text:html, due:$("#oodue").value||"", weight:$("#ooweight").value, result:"", note:"", at:Date.now()});
+    saveDO(); render(); document.querySelector("[data-k='ooadd']")?.focus(); toast("One-off task added");
+  }
+  else if (act==="oorate"){ const o=(DO().oneoffs||[]).find(x=>x.id===id); if(!o) return; o.result = o.result===b.dataset.h ? "" : b.dataset.h; o.done = o.result ? todayISO() : ""; saveDO(); render(); }
+  else if (act==="oodel"){
+    if (confirmDel!=="oo:"+id){ confirmDel="oo:"+id; toast("Click Remove again to delete this one-off task"); return; }
+    confirmDel=null; const p=DO(); p.oneoffs=(p.oneoffs||[]).filter(o=>o.id!==id); saveDO(); render();
   }
   else if (act==="logadd"){ logFor=id; histFor=null; render(); document.querySelector(`[data-k="ln:${id}"]`)?.focus(); }
   else if (act==="logcancel"){ logFor=null; render(); }
@@ -1144,6 +1220,7 @@ document.addEventListener("change", e=>{
   else if (act==="mdate" && t.value){ M().date=t.value; saveM(); render(); }
   else if (act==="mstatus"){ M().status=t.value; saveM(); render(); }
   else if (act==="mchannel"){ M().channel=t.value; saveM(); render(); }
+  else if (act==="oodue"||act==="ooweight"){ const o=(DO().oneoffs||[]).find(x=>x.id===t.dataset.id); if(!o) return; if(act==="oodue") o.due=t.value; else o.weight=t.value; saveDO(); render(); }
   else if (act==="dweight"){ const d=dutyById(DO(),t.dataset.id); if(d){ d.weight=t.value; saveDO(); render(); } }
   else if (act==="dfreq"||act==="dstatus"||act==="dsince"||act==="dhealth"||act==="dchecked"||act==="dmethod"){
     const d=dutyById(DO(),t.dataset.id); if(!d) return;
@@ -1158,6 +1235,8 @@ document.addEventListener("input", e=>{
   const t=e.target, act=t.dataset.act; if(!act) return;
   if (act==="tedit"){ const x=M().topics.find(y=>y.id===t.dataset.id); if(x){ x.text=clean(t.innerHTML); saveM(); } }
   else if (act==="oedit"){ const o=getCont(M(),t.dataset.tid).outcomes.find(y=>y.id===t.dataset.id); if(o){ o.text=clean(t.innerHTML); saveM(); } }
+  else if (act==="oonote"){ const o=(DO().oneoffs||[]).find(x=>x.id===t.dataset.id); if(o){ o.note=esc(t.value); saveDO(800); } }
+  else if (act==="ooedit"){ const o=(DO().oneoffs||[]).find(x=>x.id===t.dataset.id); if(o){ o.text=clean(t.innerHTML); saveDO(); } }
   else if (act==="wnote"){
     const d=dutyById(DO(),t.dataset.id); if(!d) return; migrateLog(d);
     const W=sel.week?weekStart(sel.week):weekStart(todayISO());
@@ -1172,6 +1251,7 @@ document.addEventListener("input", e=>{
   else if (act==="aedit"){ const f=findAction(t.dataset.mid,t.dataset.id); if(f){ f.a.text=t.value; schedule("meetings",t.dataset.mid,700); } }
 });
 document.addEventListener("keydown", e=>{
+  if (e.key==="Enter" && (e.ctrlKey||e.metaKey) && e.target.closest && e.target.closest(".oo-add")){ e.preventDefault(); document.querySelector('[data-act="ooadd"]')?.click(); return; }
   if (e.key==="Enter" && (e.ctrlKey||e.metaKey) && e.target.closest && e.target.closest(".add-duty")){ e.preventDefault(); e.target.closest("form").requestSubmit(); return; }
   if (e.key==="Escape" && e.target.matches(".rich")){ e.target.blur(); }
   if (e.key==="Escape" && adding && e.target.closest(".inline-add")){ adding=null; render(); }
