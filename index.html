@@ -99,6 +99,12 @@ main{grid-area:main;padding-block:20px 60px;padding-inline:28px;min-width:0}
 .tl-sum .tag{font-size:10px;padding:0 7px;margin-right:4px}
 .t-quick{background:var(--peri);color:var(--peri-ink)}
 .t-postponed{background:var(--peach);color:var(--peach-ink)}
+.t-offline{background:#dff3f1;color:#21706a}
+.tl-btn.s-offline::before{background:#dff3f1;border:2px solid #6cc3b9;border-radius:3px;transform:rotate(45deg)}
+.tl-btn.s-offline .tl-date{color:#21706a}
+.mstatus.s-offline{background:#dff3f1;color:#21706a;border-color:#b4e2dc}
+.channel{border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:#fff;font-size:13px}
+.decision-box{border:1px solid #b4e2dc;background:#f4fbfa;border-radius:16px;padding:14px 16px;display:flex;flex-direction:column;gap:6px}
 .t-cancelled{background:#f2f2f6;color:var(--muted)}
 .mstatus{border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:#fff;font-size:13px;font-weight:600}
 .mstatus.s-postponed{background:var(--peach);color:var(--peach-ink);border-color:#f6c9b4}
@@ -148,7 +154,8 @@ main{grid-area:main;padding-block:20px 60px;padding-inline:28px;min-width:0}
 .duty.h-off_track{border-left-color:#e98aa8}
 .dtrack{grid-column:1 / -1;display:grid;grid-template-columns:auto minmax(0,1fr);gap:6px 10px;align-items:center;background:var(--wash);border-radius:10px;padding:8px 10px}
 .dtrack label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);white-space:nowrap}
-.dtrack input[type=text]{border:1px solid var(--line);border-radius:8px;padding:5px 8px;background:#fff;min-width:0;width:100%}
+.dtrack .rich{border:1px solid var(--line);border-radius:8px;padding:5px 8px;background:#fff;min-width:0}
+.dtrack .rich:focus{background:#fff}
 .dtrack .row{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;font-size:12.5px;color:var(--muted)}
 .dtrack select,.dtrack input[type=date]{border:1px solid var(--line);border-radius:8px;padding:2px 6px;background:#fff;font-size:12.5px}
 .dtrack input[type=date]{font-family:var(--f-mono);font-size:12px}
@@ -166,6 +173,8 @@ main{grid-area:main;padding-block:20px 60px;padding-inline:28px;min-width:0}
 .t-paused{background:var(--peach);color:var(--peach-ink)}
 .add-duty{display:flex;gap:6px;flex-wrap:wrap;padding:12px 14px;background:var(--wash);border:1px dashed var(--lav-2);border-radius:16px}
 .add-duty .field{flex:1 1 260px}
+.add-duty .rich{background:#fff;padding:7px 10px;min-height:2.3em}
+.add-duty .hint{flex-basis:100%}
 .add-duty select{border:1px solid var(--line);border-radius:10px;padding:6px 8px;background:#fff}
 details.retired summary{cursor:pointer;color:var(--muted);font-weight:600;padding:4px 0}
 .mkduty{border:0;background:none;color:var(--muted);font-size:12px;padding:2px 6px;border-radius:6px;white-space:nowrap;flex:none}
@@ -387,6 +396,7 @@ const initials = n => n.trim().split(/\s+/).map(w=>w[0]).slice(0,2).join("").toU
 const KIND = {agreed:"Agreed", note:"Note"};
 const FREQ = {daily:"Daily", weekly:"Weekly", monthly:"Monthly", quarterly:"Quarterly", ongoing:"Ongoing / as needed"};
 const DSTAT = {active:"Active", paused:"Paused", retired:"Retired"};
+const METHODS = {"":"Tracking method", spot:"Spot check", report:"Report / export", system:"System data (Bamboo, HubSpot, Aircall)", checkin:"1:1 check-in", survey:"Survey results", feedback:"Team feedback", other:"Other"};
 const HEALTH = {unset:"Not checked yet", on_track:"On track", watch:"Needs attention", off_track:"Off track"};
 const WELCOME = `<img class="banner" src="${BANNER}" alt=""><div class="welcome"><h1>Your weekly 1:1s, in one place</h1>
   <p>Add the person you meet on the left, then start this week's 1:1. Each agenda item carries its own outcome:</p>
@@ -424,7 +434,8 @@ function topicStatus(t){
   if (t.actions.length) return "action";
   return "open";
 }
-const MSTATUS = {held:"Held",quick:"Quick call",postponed:"Postponed",cancelled:"Cancelled"};
+const MSTATUS = {held:"Held",quick:"Quick call",postponed:"Postponed",cancelled:"Cancelled",offline:"Outside 1:1"};
+const CHANNELS = ["Slack","Email","WhatsApp","Phone call","In person","Other"];
 const mstat = m => m.status || "held";
 const STATUS_LABEL = {parked:"Parked",agreed:"Agreed",discussed:"Discussed",action:"Action",open:"Open"};
 const STATUS_TAG = {parked:"t-parked",agreed:"t-agreed",discussed:"t-note",action:"t-action",open:"t-open"};
@@ -570,13 +581,14 @@ function dutyRow(d,p){
       ${src}
     </div>
     <div class="dtrack">
-      <label for="tr-${d.id}">How I track it</label>
-      <input type="text" id="tr-${d.id}" data-k="tr:${d.id}" data-act="dtrack" data-id="${d.id}" value="${esc(d.track||"")}" placeholder="e.g. Weekly Instagram insights, HubSpot report, check-in every Thursday">
+      <label>How I track it</label>
+      ${richEl("","tr:"+d.id,"dtrack",`data-id="${d.id}" aria-label="How I track it"`,d.track||"","e.g. Check BambooHR every Thursday, monthly employee tracker review")}
       <label>Status</label>
       <div class="row">
         <select class="health h-${hl}" data-act="dhealth" data-id="${d.id}" aria-label="How it's going">${Object.entries(HEALTH).map(([k,v])=>`<option value="${k}" ${hl===k?"selected":""}>${v}</option>`).join("")}</select>
         <span>last checked <input type="date" data-act="dchecked" data-id="${d.id}" value="${esc(d.checked||"")}" aria-label="Last checked"></span>
         <button class="chip" type="button" data-act="dchecknow" data-id="${d.id}">Checked today</button>
+        <select data-act="dmethod" data-id="${d.id}" aria-label="Tracking method">${Object.entries(METHODS).map(([k,v])=>`<option value="${k}" ${(d.method||"")===k?"selected":""}>${v}</option>`).join("")}</select>
       </div>
     </div></div>`;
 }
@@ -591,7 +603,7 @@ function dutiesHTML(p){
     h+=`<div class="dgroup"><h3>${label} <span class="count">${items.length}</span></h3><div class="dlist">${items.map(d=>dutyRow(d,p)).join("")}</div></div>`;
   }
   if (!live.length) h+=`<div class="welcome"><h1>No responsibilities yet</h1><p>Add ${first}'s first one below.</p></div>`;
-  h+=`<form class="add-duty" data-addduty><input class="field" data-k="addduty" placeholder="Add a responsibility, e.g. Post on Day1 Services Instagram" autocomplete="off">
+  h+=`<form class="add-duty" data-addduty><div class="field rich" contenteditable="true" role="textbox" aria-multiline="true" aria-label="New responsibility" data-k="addduty" data-ph="Add a responsibility. Use the bar for bold, italic or a numbered list"></div>
     <select id="newFreq" aria-label="How often">${Object.entries(FREQ).map(([k,v])=>`<option value="${k}" ${k==="daily"?"selected":""}>${v}</option>`).join("")}</select>
     <button class="btn primary" type="submit">Add</button></form>`;
   if (retired.length) h+=`<details class="retired"><summary>Retired (${retired.length})</summary><div class="dlist">${retired.map(d=>dutyRow(d,p)).join("")}</div></details>`;
@@ -625,15 +637,27 @@ function renderMain(){
   const m=meetings[sel.meeting], queue=p.queue||[];
   let html = `<img class="banner" src="${BANNER}" alt="">
     <div class="head"><div><h1>${esc(p.name)}</h1><div class="role">${esc(p.role||"Weekly 1:1")}</div></div>
-    <div class="actions"><button class="btn primary" data-act="newMeeting">Start this week's 1:1</button><button class="btn" data-act="missedWeek">Log a missed week</button>
+    <div class="actions"><button class="btn primary" data-act="newMeeting">Start this week's 1:1</button><button class="btn" data-act="logDecision">Log a decision</button><button class="btn" data-act="missedWeek">Log a missed week</button>
     <button class="btn ghost danger" data-act="delPerson">${confirmDel==="p:"+sel.person?"Click again to remove "+esc(p.name.split(" ")[0]):"Remove person"}</button></div></div>
 
     <section class="queue"><h2>For next 1:1 <span class="hint">Jot topics during the week. They become the agenda when you start the next 1:1.</span></h2>
       <ul class="qlist">${queue.map(q=>`<li class="qitem ${isHit(q.text,q.id)?"hit":""}">${richEl("","q:"+q.id,"qedit",`data-id="${q.id}"`,q.text,"Topic")}<button class="x" data-act="qdel" data-id="${q.id}" aria-label="Remove">✕</button></li>`).join("") || `<li class="empty">Nothing queued yet.</li>`}</ul>
       <form class="inline-add" data-addq><input class="field" data-k="addq" placeholder="Add a topic for next time" autocomplete="off"><button class="btn" type="submit">Add</button></form></section>`;
   if (m){
-    const carry=openActionsBefore(sel.person,m.date,sel.meeting), isLatest=list[0]&&list[0][0]===sel.meeting;
+    const latestHeld=list.find(([,mm])=>mstat(mm)!=="offline");
+    const carry=openActionsBefore(sel.person,m.date,sel.meeting), isLatest=latestHeld&&latestHeld[0]===sel.meeting;
     const covered=m.topics.filter(t=>topicStatus(t)!=="open").length;
+    if (mstat(m)==="offline"){
+      html += `<article class="sheet">
+        <div class="sheet-top"><span class="wk">Decision on</span><input type="date" class="date" data-act="mdate" value="${esc(m.date)}" aria-label="Decision date">
+          <select class="channel" data-act="mchannel" aria-label="Where it was decided"><option value="">Where?</option>${CHANNELS.map(c=>`<option ${m.channel===c?"selected":""}>${c}</option>`).join("")}</select>
+          <select class="mstatus s-offline" data-act="mstatus" aria-label="Type">${Object.entries(MSTATUS).map(([k,v])=>`<option value="${k}" ${mstat(m)===k?"selected":""}>${v}</option>`).join("")}</select>
+          <div class="sp"><button class="btn ghost danger" data-act="delMeeting">${confirmDel==="m:"+sel.meeting?"Click again to delete":"Delete entry"}</button></div></div>
+        <section class="decision-box"><h3 class="block-h">Decided outside a 1:1 <span class="hint">Add what was agreed, plus any notes or follow-up actions</span></h3>
+          ${bodyHTML("general",m.general,p,false)}</section>
+      </article>`;
+      main.innerHTML=html; return;
+    }
     html += `<article class="sheet">
       <div class="sheet-top"><span class="wk">1:1 on</span><input type="date" class="date" data-act="mdate" value="${esc(m.date)}" aria-label="Meeting date">
         <select class="mstatus s-${mstat(m)}" data-act="mstatus" aria-label="What happened">${Object.entries(MSTATUS).map(([k,v])=>`<option value="${k}" ${mstat(m)===k?"selected":""}>${v}</option>`).join("")}</select>
@@ -756,7 +780,7 @@ document.addEventListener("click", async e=>{
   else if (act==="adel"){ const f=findAction(mid,id); f.c.actions.splice(f.i,1); saveM(mid); render(); }
   else if (act==="newMeeting"){
     const p=people[sel.person], date=todayISO();
-    const existing=meetingsFor(sel.person).find(([,m])=>m.date===date);
+    const existing=meetingsFor(sel.person).find(([,m])=>m.date===date && (mstat(m)==="held"||mstat(m)==="quick"));
     if (existing && !(p.queue||[]).length){ sel.meeting=existing[0]; remember(); render(); toast("Today's 1:1 is already open"); return; }
     const nid=uid(), topics=(p.queue||[]).map(q=>({id:uid(),text:q.text,parked:false,outcomes:[],actions:[]}));
     meetings[nid]={personId:sel.person,date,topics,general:{outcomes:[],actions:[]},createdAt:Date.now()};
@@ -774,6 +798,11 @@ document.addEventListener("click", async e=>{
     await remove("people",pid); sel={person:Object.keys(people)[0]||null,meeting:null}; remember(); render(); toast("Removed");
   }
   else if (act==="recap"){ recapOpen=!recapOpen; render(); }
+  else if (act==="logDecision"){
+    const nid=uid();
+    meetings[nid]={personId:sel.person,date:todayISO(),status:"offline",channel:"",topics:[],general:{outcomes:[],actions:[]},createdAt:Date.now()};
+    schedule("meetings",nid,0); sel.meeting=nid; adding={tid:"general",kind:"agreed"}; clearHit(); remember(); render();
+  }
   else if (act==="missedWeek"){
     const nid=uid();
     meetings[nid]={personId:sel.person,date:todayISO(),status:"postponed",reason:"",topics:[],general:{outcomes:[],actions:[]},createdAt:Date.now()};
@@ -792,10 +821,12 @@ document.addEventListener("change", e=>{
   else if (act==="adue"){ const f=findAction(t.dataset.mid,t.dataset.id); f.a.due=t.value; saveM(t.dataset.mid); render(); }
   else if (act==="mdate" && t.value){ M().date=t.value; saveM(); render(); }
   else if (act==="mstatus"){ M().status=t.value; saveM(); render(); }
-  else if (act==="dfreq"||act==="dstatus"||act==="dsince"||act==="dhealth"||act==="dchecked"){
+  else if (act==="mchannel"){ M().channel=t.value; saveM(); render(); }
+  else if (act==="dfreq"||act==="dstatus"||act==="dsince"||act==="dhealth"||act==="dchecked"||act==="dmethod"){
     const d=dutyById(DO(),t.dataset.id); if(!d) return;
     if (act==="dfreq") d.freq=t.value; else if (act==="dstatus") d.status=t.value; else if (act==="dsince") d.since=t.value;
     else if (act==="dhealth"){ d.health=t.value; if(t.value!=="unset" && !d.checked) d.checked=todayISO(); }
+    else if (act==="dmethod") d.method=t.value;
     else d.checked=t.value;
     saveDO(); render();
   }
@@ -804,26 +835,29 @@ document.addEventListener("input", e=>{
   const t=e.target, act=t.dataset.act; if(!act) return;
   if (act==="tedit"){ const x=M().topics.find(y=>y.id===t.dataset.id); if(x){ x.text=clean(t.innerHTML); saveM(); } }
   else if (act==="oedit"){ const o=getCont(M(),t.dataset.tid).outcomes.find(y=>y.id===t.dataset.id); if(o){ o.text=clean(t.innerHTML); saveM(); } }
-  else if (act==="dtrack"){ const d=dutyById(DO(),t.dataset.id); if(d){ d.track=t.value; saveDO(700); } }
+  else if (act==="dtrack"){ const d=dutyById(DO(),t.dataset.id); if(d){ d.track=clean(t.innerHTML); saveDO(700); } }
   else if (act==="dedit"){ const d=dutyById(DO(),t.dataset.id); if(d){ d.text=clean(t.innerHTML); saveDO(); } }
   else if (act==="qedit"){ const q=(people[sel.person].queue||[]).find(y=>y.id===t.dataset.id); if(q){ q.text=clean(t.innerHTML); schedule("people",sel.person); } }
   else if (act==="reason"){ M().reason=t.value; saveM(); }
   else if (act==="aedit"){ const f=findAction(t.dataset.mid,t.dataset.id); if(f){ f.a.text=t.value; schedule("meetings",t.dataset.mid,700); } }
 });
 document.addEventListener("keydown", e=>{
+  if (e.key==="Enter" && (e.ctrlKey||e.metaKey) && e.target.closest && e.target.closest(".add-duty")){ e.preventDefault(); e.target.closest("form").requestSubmit(); return; }
   if (e.key==="Escape" && e.target.matches(".rich")){ e.target.blur(); }
   if (e.key==="Escape" && adding && e.target.closest(".inline-add")){ adding=null; render(); }
 });
 document.addEventListener("submit", e=>{
   const form=e.target; if (form.id==="addPerson"||form.id==="addMember"||form.id==="lockForm") return;
   e.preventDefault();
+  if (form.hasAttribute("data-addduty")){
+    const ed=form.querySelector("[data-k='addduty']"), html=clean(ed.innerHTML);
+    if (!plain(html)) { ed.focus(); return; }
+    const p=DO(); p.duties ||= [];
+    p.duties.push({id:uid(),text:html,freq:$("#newFreq").value,status:"active",since:todayISO(),src:null});
+    saveDO(); render(); const n=document.querySelector("[data-k='addduty']"); if(n){ n.innerHTML=""; n.focus(); } toast("Responsibility added"); return;
+  }
   const input=form.querySelector("input.field"), raw=input ? input.value.trim() : ""; if(!raw) return;
   const text = form.dataset.addto && adding && adding.kind==="action" ? raw : esc(raw);
-  if (form.hasAttribute("data-addduty")){
-    const p=DO(); p.duties ||= [];
-    p.duties.push({id:uid(),text,freq:$("#newFreq").value,status:"active",since:todayISO(),src:null});
-    saveDO(); input.value=""; render(); document.querySelector('[data-k="addduty"]')?.focus(); return;
-  }
   if (form.hasAttribute("data-addq")){ addToQueue(text); input.value=""; render(); document.querySelector('[data-k="addq"]')?.focus(); return; }
   if (form.hasAttribute("data-addtopic")){ M().topics.push({id:uid(),text,parked:false,outcomes:[],actions:[]}); saveM(); input.value=""; render(); document.querySelector('[data-k="addtopic"]')?.focus(); return; }
   if (form.dataset.addto){
