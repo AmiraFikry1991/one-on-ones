@@ -133,6 +133,21 @@ main{grid-area:main;padding-block:20px 60px;padding-inline:28px;min-width:0}
 .duty{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 12px;padding:12px 14px;background:#fff;align-items:start}
 .duty + .duty{border-top:1px solid var(--line)}
 .duty.hit{background:#fffbe3}
+.duty{border-left:4px solid transparent}
+.duty.h-on_track{border-left-color:#7fcfa2}
+.duty.h-watch{border-left-color:#f3b48f}
+.duty.h-off_track{border-left-color:#e98aa8}
+.dtrack{grid-column:1 / -1;display:grid;grid-template-columns:auto minmax(0,1fr);gap:6px 10px;align-items:center;background:var(--wash);border-radius:10px;padding:8px 10px}
+.dtrack label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);white-space:nowrap}
+.dtrack input[type=text]{border:1px solid var(--line);border-radius:8px;padding:5px 8px;background:#fff;min-width:0;width:100%}
+.dtrack .row{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;font-size:12.5px;color:var(--muted)}
+.dtrack select,.dtrack input[type=date]{border:1px solid var(--line);border-radius:8px;padding:2px 6px;background:#fff;font-size:12.5px}
+.dtrack input[type=date]{font-family:var(--f-mono);font-size:12px}
+.health.h-on_track{background:var(--mint);color:var(--mint-ink);border-color:#bfe6cf}
+.health.h-watch{background:var(--peach);color:var(--peach-ink);border-color:#f6c9b4}
+.health.h-off_track{background:var(--rose);color:var(--rose-ink);border-color:#f2c4d6}
+.dsum{display:flex;gap:6px;flex-wrap:wrap}
+@media (max-width:760px){ .dtrack{grid-template-columns:minmax(0,1fr)} }
 .duty.st-paused .rich{color:var(--muted)}
 .duty-meta{grid-column:1 / -1;display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;font-size:12.5px;color:var(--muted)}
 .duty-meta select,.duty-meta input[type=date]{border:1px solid var(--line);border-radius:8px;padding:2px 6px;background:#fff;font-size:12.5px}
@@ -350,6 +365,7 @@ const initials = n => n.trim().split(/\s+/).map(w=>w[0]).slice(0,2).join("").toU
 const KIND = {agreed:"Agreed", note:"Note"};
 const FREQ = {daily:"Daily", weekly:"Weekly", monthly:"Monthly", ongoing:"Ongoing / as needed"};
 const DSTAT = {active:"Active", paused:"Paused", retired:"Retired"};
+const HEALTH = {unset:"Not checked yet", on_track:"On track", watch:"Needs attention", off_track:"Off track"};
 const WELCOME = `<img class="banner" src="${BANNER}" alt=""><div class="welcome"><h1>Your weekly 1:1s, in one place</h1>
   <p>Add the person you meet on the left, then start this week's 1:1. Each agenda item carries its own outcome:</p>
   <ol><li>Agreed: a decision you both signed off on</li><li>Note: context or an update</li><li>Action: who does what, by when</li><li>Park: push it to the next 1:1</li></ol></div>`;
@@ -514,7 +530,8 @@ function bodyHTML(tid,c,p,showPark){
 const dutyById = (p,id) => (p.duties||[]).find(d=>d.id===id);
 function dutyRow(d,p){
   const src = d.src && meetings[d.src] ? `<button class="dsrc" data-act="gotoSrc" data-mid="${d.src}">Agreed in 1:1 on ${esc(fmtDate(meetings[d.src].date))}</button>` : "";
-  return `<div class="duty st-${d.status||"active"} ${isHit(d.text,d.id)?"hit":""}">
+  const hl=d.health||"unset";
+  return `<div class="duty st-${d.status||"active"} h-${hl} ${isHit(d.text,d.id)||isHit(d.track,d.id)?"hit":""}">
     ${richEl("","d:"+d.id,"dedit",`data-id="${d.id}" aria-label="Responsibility"`,d.text,"Describe the responsibility")}
     <button class="x" data-act="ddel" data-id="${d.id}" aria-label="Remove responsibility">✕</button>
     <div class="duty-meta">
@@ -522,12 +539,24 @@ function dutyRow(d,p){
       <select data-act="dstatus" data-id="${d.id}" aria-label="Status">${Object.entries(DSTAT).map(([k,v])=>`<option value="${k}" ${(d.status||"active")===k?"selected":""}>${v}</option>`).join("")}</select>
       <span>since <input type="date" data-act="dsince" data-id="${d.id}" value="${esc(d.since||"")}" aria-label="Since"></span>
       ${src}
+    </div>
+    <div class="dtrack">
+      <label for="tr-${d.id}">How I track it</label>
+      <input type="text" id="tr-${d.id}" data-k="tr:${d.id}" data-act="dtrack" data-id="${d.id}" value="${esc(d.track||"")}" placeholder="e.g. Weekly Instagram insights, HubSpot report, check-in every Thursday">
+      <label>Status</label>
+      <div class="row">
+        <select class="health h-${hl}" data-act="dhealth" data-id="${d.id}" aria-label="How it's going">${Object.entries(HEALTH).map(([k,v])=>`<option value="${k}" ${hl===k?"selected":""}>${v}</option>`).join("")}</select>
+        <span>last checked <input type="date" data-act="dchecked" data-id="${d.id}" value="${esc(d.checked||"")}" aria-label="Last checked"></span>
+        <button class="chip" type="button" data-act="dchecknow" data-id="${d.id}">Checked today</button>
+      </div>
     </div></div>`;
 }
 function dutiesHTML(p){
   const all=p.duties||[], first=esc(p.name.split(" ")[0]);
   const live=all.filter(d=>d.status!=="retired"), retired=all.filter(d=>d.status==="retired");
-  let h=`<section class="duties"><p class="duty-intro">${first}'s standing, day-to-day duties. Add them here, or press <b>+ Responsibility</b> on anything marked Agreed in a 1:1.</p>`;
+  const cnt=k=>live.filter(d=>(d.health||"unset")===k).length;
+  let h=`<section class="duties"><p class="duty-intro">${first}'s standing, day-to-day duties and how you're tracking each one. Add them here, or press <b>+ Responsibility</b> on anything marked Agreed in a 1:1.</p>`;
+  if (live.length) h+=`<div class="dsum">${["on_track","watch","off_track","unset"].filter(k=>cnt(k)).map(k=>`<span class="tag ${k==="on_track"?"t-agreed":k==="watch"?"t-paused":k==="off_track"?"t-note":"t-open"}">${cnt(k)} ${HEALTH[k].toLowerCase()}</span>`).join("")}</div>`;
   for (const [k,label] of Object.entries(FREQ)){
     const items=live.filter(d=>(d.freq||"ongoing")===k); if(!items.length) continue;
     h+=`<div class="dgroup"><h3>${label} <span class="count">${items.length}</span></h3><div class="dlist">${items.map(d=>dutyRow(d,p)).join("")}</div></div>`;
@@ -624,7 +653,7 @@ function runSearch(){
   for (const [pid,p] of Object.entries(people)){
     if (has(p.name)) hits.push({pid,mid:null,date:"",tag:"person",id:null,text:p.name});
     (p.queue||[]).forEach(q=>{ if(has(q.text)) hits.push({pid,mid:null,date:"",tag:"queue",id:q.id,text:q.text}); });
-    (p.duties||[]).forEach(d=>{ if(has(d.text)) hits.push({pid,mid:null,date:d.since||"",tag:"duty",id:d.id,text:d.text,tab:"duties"}); });
+    (p.duties||[]).forEach(d=>{ if(has(d.text)||has(d.track)) hits.push({pid,mid:null,date:d.since||"",tag:"duty",id:d.id,text:d.text,tab:"duties"}); });
   }
   hits.sort((a,b)=>(b.date||"9999").localeCompare(a.date||"9999"));
   const TAGS={agenda:"Agenda",agreed:"Agreed",note:"Note",action:"Action",queue:"For next 1:1",duty:"Responsibility"};
@@ -670,6 +699,7 @@ document.addEventListener("click", async e=>{
     toast(`Added to ${p.name.split(" ")[0]}'s responsibilities`);
   }
   else if (act==="gotoDuty"){ sel.tab="duties"; hitId=id; hitTerm=""; remember(); render(); document.querySelector(".duty.hit")?.scrollIntoView({block:"center"}); }
+  else if (act==="dchecknow"){ const d=dutyById(people[sel.person],id); d.checked=todayISO(); schedule("people",sel.person); render(); toast("Marked as checked today"); }
   else if (act==="gotoSrc"){ sel.tab="ones"; sel.meeting=mid; clearHit(); remember(); render(); }
   else if (act==="ddel"){
     const p=people[sel.person];
@@ -717,9 +747,11 @@ document.addEventListener("change", e=>{
   else if (act==="adue"){ const f=findAction(t.dataset.mid,t.dataset.id); f.a.due=t.value; saveM(t.dataset.mid); render(); }
   else if (act==="mdate" && t.value){ M().date=t.value; saveM(); render(); }
   else if (act==="mstatus"){ M().status=t.value; saveM(); render(); }
-  else if (act==="dfreq"||act==="dstatus"||act==="dsince"){
+  else if (act==="dfreq"||act==="dstatus"||act==="dsince"||act==="dhealth"||act==="dchecked"){
     const d=dutyById(people[sel.person],t.dataset.id); if(!d) return;
-    if (act==="dfreq") d.freq=t.value; else if (act==="dstatus") d.status=t.value; else d.since=t.value;
+    if (act==="dfreq") d.freq=t.value; else if (act==="dstatus") d.status=t.value; else if (act==="dsince") d.since=t.value;
+    else if (act==="dhealth"){ d.health=t.value; if(t.value!=="unset" && !d.checked) d.checked=todayISO(); }
+    else d.checked=t.value;
     schedule("people",sel.person); render();
   }
 });
@@ -727,6 +759,7 @@ document.addEventListener("input", e=>{
   const t=e.target, act=t.dataset.act; if(!act) return;
   if (act==="tedit"){ const x=M().topics.find(y=>y.id===t.dataset.id); if(x){ x.text=clean(t.innerHTML); saveM(); } }
   else if (act==="oedit"){ const o=getCont(M(),t.dataset.tid).outcomes.find(y=>y.id===t.dataset.id); if(o){ o.text=clean(t.innerHTML); saveM(); } }
+  else if (act==="dtrack"){ const d=dutyById(people[sel.person],t.dataset.id); if(d){ d.track=t.value; schedule("people",sel.person,700); } }
   else if (act==="dedit"){ const d=dutyById(people[sel.person],t.dataset.id); if(d){ d.text=clean(t.innerHTML); schedule("people",sel.person); } }
   else if (act==="qedit"){ const q=(people[sel.person].queue||[]).find(y=>y.id===t.dataset.id); if(q){ q.text=clean(t.innerHTML); schedule("people",sel.person); } }
   else if (act==="reason"){ M().reason=t.value; saveM(); }
