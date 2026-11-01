@@ -120,6 +120,33 @@ main{grid-area:main;padding-block:20px 60px;padding-inline:28px;min-width:0}
 .head h1{font-family:var(--f-display);font-weight:400;font-size:clamp(26px,4vw,34px);line-height:1.1;margin:0;text-wrap:balance}
 .head .role{color:var(--muted);margin-top:4px}
 .head .actions{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line)}
+.tab{border:0;background:none;padding:8px 14px;font-weight:600;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px}
+.tab:hover{color:var(--ink)}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--lav-ink)}
+.tab .count{font-family:var(--f-mono);font-size:11.5px;font-weight:500;background:var(--wash);border-radius:99px;padding:0 7px;margin-left:4px}
+.duties{display:flex;flex-direction:column;gap:16px}
+.duty-intro{color:var(--muted);font-size:13.5px;margin:0}
+.dgroup{display:flex;flex-direction:column;gap:6px}
+.dgroup h3{font-family:var(--f-display);font-weight:400;font-size:18px;margin:0;display:flex;align-items:baseline;gap:8px}
+.dlist{border:1px solid var(--line);border-radius:16px;overflow:hidden}
+.duty{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 12px;padding:12px 14px;background:#fff;align-items:start}
+.duty + .duty{border-top:1px solid var(--line)}
+.duty.hit{background:#fffbe3}
+.duty.st-paused .rich{color:var(--muted)}
+.duty-meta{grid-column:1 / -1;display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;font-size:12.5px;color:var(--muted)}
+.duty-meta select,.duty-meta input[type=date]{border:1px solid var(--line);border-radius:8px;padding:2px 6px;background:#fff;font-size:12.5px}
+.duty-meta input[type=date]{font-family:var(--f-mono);font-size:12px}
+.dsrc{border:0;background:none;padding:0;color:var(--peri-ink);font-size:12.5px;text-decoration:underline;text-underline-offset:2px}
+.t-duty{background:var(--peri);color:var(--peri-ink)}
+.t-paused{background:var(--peach);color:var(--peach-ink)}
+.add-duty{display:flex;gap:6px;flex-wrap:wrap;padding:12px 14px;background:var(--wash);border:1px dashed var(--lav-2);border-radius:16px}
+.add-duty .field{flex:1 1 260px}
+.add-duty select{border:1px solid var(--line);border-radius:10px;padding:6px 8px;background:#fff}
+details.retired summary{cursor:pointer;color:var(--muted);font-weight:600;padding:4px 0}
+.mkduty{border:0;background:none;color:var(--muted);font-size:12px;padding:2px 6px;border-radius:6px;white-space:nowrap;flex:none}
+.mkduty:hover{background:var(--peri);color:var(--peri-ink)}
+.mkduty.on{color:var(--peri-ink)}
 .queue{border:1px dashed var(--lav-2);border-radius:16px;padding:14px 18px;display:flex;flex-direction:column;gap:8px}
 .queue h2,.block-h{font-family:var(--f-display);font-weight:400;font-size:18px;margin:0;display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 10px}
 .hint{font-family:var(--f-body);font-size:12.5px;color:var(--muted)}
@@ -170,7 +197,7 @@ main{grid-area:main;padding-block:20px 60px;padding-inline:28px;min-width:0}
 .fmt button:hover{background:var(--wash)}
 .fmt button[aria-pressed="true"]{background:var(--lav);color:var(--lav-ink)}
 .fmt .sep{width:1px;background:var(--line);margin:4px 2px}
-.topic:hover .x,.qitem:hover .x,.line:hover .x,.x:focus{opacity:1}
+.duty:hover .x,.topic:hover .x,.qitem:hover .x,.line:hover .x,.x:focus{opacity:1}
 .x:hover{color:var(--peach-ink)}
 .act{display:grid;grid-template-columns:auto 18px minmax(0,1fr) auto auto 24px;gap:8px;align-items:center;padding:2px 0;border-radius:8px}
 .act.hit{background:#fff6c7;box-shadow:0 0 0 4px #fff6c7}
@@ -316,6 +343,8 @@ const fmtShort = iso => iso ? new Date(iso+"T12:00:00").toLocaleDateString(undef
 const fmtMonth = iso => new Date(iso+"T12:00:00").toLocaleDateString(undefined,{month:"long",year:"numeric"});
 const initials = n => n.trim().split(/\s+/).map(w=>w[0]).slice(0,2).join("").toUpperCase();
 const KIND = {agreed:"Agreed", note:"Note"};
+const FREQ = {daily:"Daily", weekly:"Weekly", monthly:"Monthly", ongoing:"Ongoing / as needed"};
+const DSTAT = {active:"Active", paused:"Paused", retired:"Retired"};
 const WELCOME = `<img class="banner" src="${BANNER}" alt=""><div class="welcome"><h1>Your weekly 1:1s, in one place</h1>
   <p>Add the person you meet on the left, then start this week's 1:1. Each agenda item carries its own outcome:</p>
   <ol><li>Agreed: a decision you both signed off on</li><li>Note: context or an update</li><li>Action: who does what, by when</li><li>Park: push it to the next 1:1</li></ol></div>`;
@@ -461,6 +490,7 @@ function bodyHTML(tid,c,p,showPark){
   let h = c.outcomes.map(o=>`<div class="line ${isHit(o.text,o.id)?"hit":""}">
       <button class="tag t-${o.kind}" data-act="okind" data-tid="${tid}" data-id="${o.id}" title="Switch between Agreed and Note">${KIND[o.kind]}</button>
       ${richEl("txt","o:"+o.id,"oedit",`data-tid="${tid}" data-id="${o.id}"`,o.text,"Write it here")}
+      ${o.kind==="agreed"?(o.duty&&dutyById(p,o.duty)?`<button class="mkduty on" data-act="gotoDuty" data-id="${o.duty}" title="Open in Responsibilities">✓ Responsibility</button>`:`<button class="mkduty" data-act="mkduty" data-tid="${tid}" data-id="${o.id}" title="Save this as an ongoing responsibility for ${esc(p.name.split(" ")[0])}">+ Responsibility</button>`):""}
       <button class="x" data-act="odel" data-tid="${tid}" data-id="${o.id}" aria-label="Remove">✕</button></div>`).join("");
   h += c.actions.map(a=>actionRow(sel.meeting,a,p)).join("");
   if (adding && adding.tid===tid){
@@ -476,6 +506,34 @@ function bodyHTML(tid,c,p,showPark){
   </div>`;
   return h;
 }
+const dutyById = (p,id) => (p.duties||[]).find(d=>d.id===id);
+function dutyRow(d,p){
+  const src = d.src && meetings[d.src] ? `<button class="dsrc" data-act="gotoSrc" data-mid="${d.src}">Agreed in 1:1 on ${esc(fmtDate(meetings[d.src].date))}</button>` : "";
+  return `<div class="duty st-${d.status||"active"} ${isHit(d.text,d.id)?"hit":""}">
+    ${richEl("","d:"+d.id,"dedit",`data-id="${d.id}" aria-label="Responsibility"`,d.text,"Describe the responsibility")}
+    <button class="x" data-act="ddel" data-id="${d.id}" aria-label="Remove responsibility">✕</button>
+    <div class="duty-meta">
+      <select data-act="dfreq" data-id="${d.id}" aria-label="How often">${Object.entries(FREQ).map(([k,v])=>`<option value="${k}" ${d.freq===k?"selected":""}>${v}</option>`).join("")}</select>
+      <select data-act="dstatus" data-id="${d.id}" aria-label="Status">${Object.entries(DSTAT).map(([k,v])=>`<option value="${k}" ${(d.status||"active")===k?"selected":""}>${v}</option>`).join("")}</select>
+      <span>since <input type="date" data-act="dsince" data-id="${d.id}" value="${esc(d.since||"")}" aria-label="Since"></span>
+      ${src}
+    </div></div>`;
+}
+function dutiesHTML(p){
+  const all=p.duties||[], first=esc(p.name.split(" ")[0]);
+  const live=all.filter(d=>d.status!=="retired"), retired=all.filter(d=>d.status==="retired");
+  let h=`<section class="duties"><p class="duty-intro">${first}'s standing, day-to-day duties. Add them here, or press <b>+ Responsibility</b> on anything marked Agreed in a 1:1.</p>`;
+  for (const [k,label] of Object.entries(FREQ)){
+    const items=live.filter(d=>(d.freq||"ongoing")===k); if(!items.length) continue;
+    h+=`<div class="dgroup"><h3>${label} <span class="count">${items.length}</span></h3><div class="dlist">${items.map(d=>dutyRow(d,p)).join("")}</div></div>`;
+  }
+  if (!live.length) h+=`<div class="welcome"><h1>No responsibilities yet</h1><p>Add ${first}'s first one below.</p></div>`;
+  h+=`<form class="add-duty" data-addduty><input class="field" data-k="addduty" placeholder="Add a responsibility, e.g. Post on Day1 Services Instagram" autocomplete="off">
+    <select id="newFreq" aria-label="How often">${Object.entries(FREQ).map(([k,v])=>`<option value="${k}" ${k==="daily"?"selected":""}>${v}</option>`).join("")}</select>
+    <button class="btn primary" type="submit">Add</button></form>`;
+  if (retired.length) h+=`<details class="retired"><summary>Retired (${retired.length})</summary><div class="dlist">${retired.map(d=>dutyRow(d,p)).join("")}</div></details>`;
+  return h+`</section>`;
+}
 function renderMain(){
   const main=$("#main"), p=people[sel.person];
   if (!p){ main.innerHTML = Object.keys(people).length ? `<img class="banner" src="${BANNER}" alt=""><div class="welcome"><h1>Pick someone</h1><p>Choose a person on the left to see their 1:1s.</p></div>` : WELCOME; return; }
@@ -486,6 +544,12 @@ function renderMain(){
     <div class="head"><div><h1>${esc(p.name)}</h1><div class="role">${esc(p.role||"Weekly 1:1")}</div></div>
     <div class="actions"><button class="btn primary" data-act="newMeeting">Start this week's 1:1</button><button class="btn" data-act="missedWeek">Log a missed week</button>
     <button class="btn ghost danger" data-act="delPerson">${confirmDel==="p:"+sel.person?"Click again to remove "+esc(p.name.split(" ")[0]):"Remove person"}</button></div></div>
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" data-act="tab" data-tab="ones" aria-selected="${sel.tab!=="duties"}">1:1s</button>
+      <button class="tab" role="tab" data-act="tab" data-tab="duties" aria-selected="${sel.tab==="duties"}">Responsibilities<span class="count">${(p.duties||[]).filter(d=>d.status!=="retired").length}</span></button>
+    </div>`;
+  if (sel.tab==="duties"){ main.innerHTML = html + dutiesHTML(p); return; }
+  html += `
     <section class="queue"><h2>For next 1:1 <span class="hint">Jot topics during the week. They become the agenda when you start the next 1:1.</span></h2>
       <ul class="qlist">${queue.map(q=>`<li class="qitem ${isHit(q.text,q.id)?"hit":""}">${richEl("","q:"+q.id,"qedit",`data-id="${q.id}"`,q.text,"Topic")}<button class="x" data-act="qdel" data-id="${q.id}" aria-label="Remove">✕</button></li>`).join("") || `<li class="empty">Nothing queued yet.</li>`}</ul>
       <form class="inline-add" data-addq><input class="field" data-k="addq" placeholder="Add a topic for next time" autocomplete="off"><button class="btn" type="submit">Add</button></form></section>`;
@@ -554,12 +618,13 @@ function runSearch(){
   for (const [pid,p] of Object.entries(people)){
     if (has(p.name)) hits.push({pid,mid:null,date:"",tag:"person",id:null,text:p.name});
     (p.queue||[]).forEach(q=>{ if(has(q.text)) hits.push({pid,mid:null,date:"",tag:"queue",id:q.id,text:q.text}); });
+    (p.duties||[]).forEach(d=>{ if(has(d.text)) hits.push({pid,mid:null,date:d.since||"",tag:"duty",id:d.id,text:d.text,tab:"duties"}); });
   }
   hits.sort((a,b)=>(b.date||"9999").localeCompare(a.date||"9999"));
-  const TAGS={agenda:"Agenda",agreed:"Agreed",note:"Note",action:"Action",queue:"For next 1:1"};
+  const TAGS={agenda:"Agenda",agreed:"Agreed",note:"Note",action:"Action",queue:"For next 1:1",duty:"Responsibility"};
   box.hidden=false;
   box.innerHTML = hits.length
-    ? `<div class="res-head">${hits.length} match${hits.length===1?"":"es"} across all 1:1s</div>`+hits.slice(0,60).map(h=>`<button class="res" data-hit='${esc(JSON.stringify({pid:h.pid,mid:h.mid,id:h.id}))}'>
+    ? `<div class="res-head">${hits.length} match${hits.length===1?"":"es"} across all 1:1s</div>`+hits.slice(0,60).map(h=>`<button class="res" data-hit='${esc(JSON.stringify({pid:h.pid,mid:h.mid,id:h.id,tab:h.tab||"ones"}))}'>
         <div class="r1"><span class="who">${esc(people[h.pid].name)}</span>${h.date?`<span class="when">${esc(fmtDate(h.date))}</span>`:""}${TAGS[h.tag]?`<span class="tag t-${h.tag}">${TAGS[h.tag]}</span>`:""}</div>
         <div class="snip">${snippet(h.text,term)}</div>${h.ctx?`<div class="hint" style="margin-top:2px">Under: ${esc(oneLine(h.ctx).slice(0,80))}</div>`:""}</button>`).join("")
     : `<div class="res-head">No matches for "${esc(term)}".</div>`;
@@ -577,20 +642,34 @@ function addToQueue(text){ const p=people[sel.person]; p.queue ||= []; if(!p.que
 
 document.addEventListener("click", async e=>{
   const hb=e.target.closest("[data-hit]");
-  if (hb){ const h=JSON.parse(hb.dataset.hit); sel.person=h.pid; sel.meeting=h.mid; hitTerm=$("#q").value.trim().toLowerCase(); hitId=h.id; adding=null;
+  if (hb){ const h=JSON.parse(hb.dataset.hit); sel.person=h.pid; sel.meeting=h.mid; sel.tab=h.tab; hitTerm=$("#q").value.trim().toLowerCase(); hitId=h.id; adding=null;
     $("#results").hidden=true; confirmDel=null; recapOpen=false; remember(); render();
     const el=document.querySelector(".hit"); if(el) el.scrollIntoView({block:"center",behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"}); return; }
-  const pb=e.target.closest("[data-person]"); if(pb){ sel.person=pb.dataset.person; sel.meeting=null; confirmDel=null; recapOpen=false; adding=null; clearHit(); remember(); render(); return; }
-  const mb=e.target.closest("[data-meeting]"); if(mb){ sel.meeting=mb.dataset.meeting; confirmDel=null; recapOpen=false; adding=null; clearHit(); remember(); render(); if(innerWidth<=760) $("#main").scrollIntoView({block:"start"}); return; }
+  const pb=e.target.closest("[data-person]"); if(pb){ sel.person=pb.dataset.person; sel.meeting=null; sel.tab="ones"; confirmDel=null; recapOpen=false; adding=null; clearHit(); remember(); render(); return; }
+  const mb=e.target.closest("[data-meeting]"); if(mb){ sel.meeting=mb.dataset.meeting; sel.tab="ones"; confirmDel=null; recapOpen=false; adding=null; clearHit(); remember(); render(); if(innerWidth<=760) $("#main").scrollIntoView({block:"start"}); return; }
   const b=e.target.closest("[data-act]"); if(!b) return;
   const act=b.dataset.act, id=b.dataset.id, tid=b.dataset.tid, mid=b.dataset.mid;
-  if (act!=="delPerson" && act!=="delMeeting") confirmDel=null;
+  if (act!=="delPerson" && act!=="delMeeting" && act!=="ddel") confirmDel=null;
   if (act==="startAdd"){ adding={tid,kind:b.dataset.kind}; render(); }
   else if (act==="cancelAdd"){ adding=null; render(); }
   else if (act==="okind"){ const o=getCont(M(),tid).outcomes.find(x=>x.id===id); o.kind=o.kind==="agreed"?"note":"agreed"; saveM(); render(); }
   else if (act==="odel"){ const c=getCont(M(),tid); c.outcomes=c.outcomes.filter(x=>x.id!==id); saveM(); render(); }
   else if (act==="tdel"){ M().topics=M().topics.filter(t=>t.id!==id); saveM(); render(); }
   else if (act==="park"){ const t=getCont(M(),tid); t.parked=!t.parked; if(t.parked){ addToQueue(t.text); toast("Added to next 1:1"); } saveM(); render(); }
+  else if (act==="tab"){ sel.tab=b.dataset.tab; adding=null; clearHit(); remember(); render(); }
+  else if (act==="mkduty"){
+    const p=people[sel.person], m=M(), o=getCont(m,tid).outcomes.find(x=>x.id===id);
+    p.duties ||= []; const d={id:uid(),text:o.text,freq:"ongoing",status:"active",since:m.date,src:sel.meeting};
+    p.duties.push(d); o.duty=d.id; schedule("people",sel.person); saveM(); render();
+    toast(`Added to ${p.name.split(" ")[0]}'s responsibilities`);
+  }
+  else if (act==="gotoDuty"){ sel.tab="duties"; hitId=id; hitTerm=""; remember(); render(); document.querySelector(".duty.hit")?.scrollIntoView({block:"center"}); }
+  else if (act==="gotoSrc"){ sel.tab="ones"; sel.meeting=mid; clearHit(); remember(); render(); }
+  else if (act==="ddel"){
+    const p=people[sel.person];
+    if (confirmDel!=="d:"+id){ confirmDel="d:"+id; toast("Click ✕ again to remove it, or set it to Retired to keep a record"); return; }
+    confirmDel=null; p.duties=(p.duties||[]).filter(d=>d.id!==id); schedule("people",sel.person); render();
+  }
   else if (act==="qdel"){ const p=people[sel.person]; p.queue=(p.queue||[]).filter(q=>q.id!==id); schedule("people",sel.person); render(); }
   else if (act==="aowner"){ const f=findAction(mid,id); f.a.owner = f.a.owner==="me"?"them":f.a.owner==="them"?"both":"me"; saveM(mid); render(); }
   else if (act==="adel"){ const f=findAction(mid,id); f.c.actions.splice(f.i,1); saveM(mid); render(); }
@@ -632,11 +711,17 @@ document.addEventListener("change", e=>{
   else if (act==="adue"){ const f=findAction(t.dataset.mid,t.dataset.id); f.a.due=t.value; saveM(t.dataset.mid); render(); }
   else if (act==="mdate" && t.value){ M().date=t.value; saveM(); render(); }
   else if (act==="mstatus"){ M().status=t.value; saveM(); render(); }
+  else if (act==="dfreq"||act==="dstatus"||act==="dsince"){
+    const d=dutyById(people[sel.person],t.dataset.id); if(!d) return;
+    if (act==="dfreq") d.freq=t.value; else if (act==="dstatus") d.status=t.value; else d.since=t.value;
+    schedule("people",sel.person); render();
+  }
 });
 document.addEventListener("input", e=>{
   const t=e.target, act=t.dataset.act; if(!act) return;
   if (act==="tedit"){ const x=M().topics.find(y=>y.id===t.dataset.id); if(x){ x.text=clean(t.innerHTML); saveM(); } }
   else if (act==="oedit"){ const o=getCont(M(),t.dataset.tid).outcomes.find(y=>y.id===t.dataset.id); if(o){ o.text=clean(t.innerHTML); saveM(); } }
+  else if (act==="dedit"){ const d=dutyById(people[sel.person],t.dataset.id); if(d){ d.text=clean(t.innerHTML); schedule("people",sel.person); } }
   else if (act==="qedit"){ const q=(people[sel.person].queue||[]).find(y=>y.id===t.dataset.id); if(q){ q.text=clean(t.innerHTML); schedule("people",sel.person); } }
   else if (act==="reason"){ M().reason=t.value; saveM(); }
   else if (act==="aedit"){ const f=findAction(t.dataset.mid,t.dataset.id); if(f){ f.a.text=t.value; schedule("meetings",t.dataset.mid,700); } }
@@ -650,6 +735,11 @@ document.addEventListener("submit", e=>{
   e.preventDefault();
   const input=form.querySelector("input.field"), raw=input ? input.value.trim() : ""; if(!raw) return;
   const text = form.dataset.addto && adding && adding.kind==="action" ? raw : esc(raw);
+  if (form.hasAttribute("data-addduty")){
+    const p=people[sel.person]; p.duties ||= [];
+    p.duties.push({id:uid(),text,freq:$("#newFreq").value,status:"active",since:todayISO(),src:null});
+    schedule("people",sel.person); input.value=""; render(); document.querySelector('[data-k="addduty"]')?.focus(); return;
+  }
   if (form.hasAttribute("data-addq")){ addToQueue(text); input.value=""; render(); document.querySelector('[data-k="addq"]')?.focus(); return; }
   if (form.hasAttribute("data-addtopic")){ M().topics.push({id:uid(),text,parked:false,outcomes:[],actions:[]}); saveM(); input.value=""; render(); document.querySelector('[data-k="addtopic"]')?.focus(); return; }
   if (form.dataset.addto){
