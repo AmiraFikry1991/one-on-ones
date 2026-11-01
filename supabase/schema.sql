@@ -17,3 +17,9 @@ create policy "Owner reads and writes own docs" on public.docs
   with check (auth.uid() = user_id);
 
 revoke all on public.docs from anon;
+
+-- Keep-awake ping used by .github/workflows/keep-awake.yml.
+-- Returns only the current time; it reads no notes.
+create or replace function public.keep_awake() returns timestamptz
+language sql stable security invoker set search_path = '' as $$ select now() $$;
+grant execute on function public.keep_awake() to anon;
