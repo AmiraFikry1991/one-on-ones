@@ -162,7 +162,45 @@ main{grid-area:main;padding-block:20px 60px;padding-inline:28px;min-width:0}
 .health.h-on_track{background:var(--mint);color:var(--mint-ink);border-color:#bfe6cf}
 .health.h-watch{background:var(--peach);color:var(--peach-ink);border-color:#f6c9b4}
 .health.h-off_track{background:var(--rose);color:var(--rose-ink);border-color:#f2c4d6}
-.dsum{display:flex;gap:6px;flex-wrap:wrap}
+.dsum{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.dsum button.tag{border:0}
+.dfilters{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.dfilters .fsep{width:1px;height:18px;background:var(--line);margin:0 2px}
+.chip[aria-pressed="true"]{background:var(--lav);color:var(--lav-ink);border-color:var(--lav-2)}
+.tt-wrap{border:1px solid var(--line);border-radius:16px;overflow-x:auto;background:#fff}
+.tt{width:100%;border-collapse:collapse;min-width:700px;font-size:14px}
+.tt th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700;padding:10px 12px;background:var(--wash);border-bottom:1px solid var(--line);white-space:nowrap}
+.tt td{padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
+.tt tbody tr:last-child td{border-bottom:0}
+.tt tr.tr td:first-child{border-left:4px solid #e4e1ee}
+.tt tr.h-on_track td:first-child{border-left-color:#7fcfa2}
+.tt tr.h-watch td:first-child{border-left-color:#f3b48f}
+.tt tr.h-off_track td:first-child{border-left-color:#e98aa8}
+.tt tr.tr:hover td{background:#fcfaff}
+.tt tr.hit td{background:#fffbe3}
+.tt tr.open td{background:var(--wash);border-bottom-color:transparent}
+.c-title{width:42%}
+.tt-toggle{border:0;background:none;padding:2px 0;text-align:left;display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 8px;width:100%;font-weight:600;color:var(--ink);line-height:1.4}
+.tt-toggle .caret{color:var(--muted);display:inline-block;width:10px;transition:transform .15s;flex:none}
+.tr.open .caret{transform:rotate(90deg)}
+.tt-toggle .hint{font-weight:400}
+.tr.paused .tt-name{color:var(--muted)}
+.tt-sel{border:1px solid transparent;background:transparent;border-radius:8px;padding:4px 6px;font-size:13px;max-width:160px;cursor:pointer}
+.tt-sel:hover,.tt-sel:focus{border-color:var(--line);background:#fff}
+.tt-sel.health{border-radius:99px;font-weight:600;padding:3px 8px}
+.tt-sel.health.h-unset{background:#f3f2f7;color:var(--muted)}
+.c-checked{white-space:nowrap}
+.c-checked .mono{font-family:var(--f-mono);font-size:12.5px;display:inline-block;min-width:70px}
+.c-checked.stale .mono{color:var(--peach-ink)}
+.chip.sm{padding:1px 8px;font-size:11.5px}
+.tt-detail td{background:var(--wash);padding:4px 16px 16px 20px;border-left:4px solid var(--lav-2)}
+.dd-grid{display:grid;grid-template-columns:130px minmax(0,1fr);gap:10px 14px;align-items:start}
+.dd-grid > label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);padding-top:7px}
+.dd-grid .rich{background:#fff;border:1px solid var(--line);border-radius:8px;padding:6px 10px}
+.dd-row{display:flex;gap:8px 14px;flex-wrap:wrap;align-items:center;font-size:13px;color:var(--muted)}
+.dd-row select,.dd-row input[type=date]{border:1px solid var(--line);border-radius:8px;padding:3px 6px;background:#fff;font-size:12.5px}
+.dd-row input[type=date]{font-family:var(--f-mono)}
+@media (max-width:760px){ .dd-grid{grid-template-columns:minmax(0,1fr)} .dd-grid > label{padding-top:0} }
 @media (max-width:760px){ .dtrack{grid-template-columns:minmax(0,1fr)} }
 .duty.st-paused .rich{color:var(--muted)}
 .duty-meta{grid-column:1 / -1;display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;font-size:12.5px;color:var(--muted)}
@@ -592,21 +630,66 @@ function dutyRow(d,p){
       </div>
     </div></div>`;
 }
+let openDuty=null;
+const SHORT_HEALTH = {unset:"Not checked", on_track:"On track", watch:"Needs attention", off_track:"Off track"};
+const STALE_DAYS = {daily:2, weekly:8, monthly:35, quarterly:100, ongoing:30};
+function dutyTitle(html){
+  const d=document.createElement("div"); d.innerHTML=clean(html);
+  let el=d.firstChild; while (el && el.nodeType===1 && (el.tagName==="DIV"||el.tagName==="P") && el.firstChild) el=el.firstChild;
+  let title="";
+  if (el && el.nodeType===1 && (el.tagName==="B"||el.tagName==="STRONG")) title=el.textContent.replace(/[:\s\u00a0]+$/,"").trim();
+  if (!title) title=oneLine(html);
+  return { title: title.length>90 ? title.slice(0,88)+"…" : title, steps: d.querySelectorAll("li").length };
+}
+function checkedCell(d){
+  if (!d.checked) return {txt:"–", stale:true};
+  const days=Math.round((new Date(todayISO()+"T12:00:00")-new Date(d.checked+"T12:00:00"))/864e5);
+  const txt = days===0 ? "Today" : days===1 ? "Yesterday" : new Date(d.checked+"T12:00:00").toLocaleDateString(undefined,{day:"numeric",month:"short"});
+  return {txt, stale: days > (STALE_DAYS[d.freq||"ongoing"]||30)};
+}
 function dutiesHTML(p){
-  const all=p.duties||[], first=esc(p.name.split(" ")[0]);
+  const all=p.duties||[], first=esc((p.name||"").split(" ")[0]), f=sel.dfilter||"all";
   const live=all.filter(d=>d.status!=="retired"), retired=all.filter(d=>d.status==="retired");
   const cnt=k=>live.filter(d=>(d.health||"unset")===k).length;
-  let h=`<section class="duties"><p class="duty-intro">${first}'s day-to-day responsibilities and how you're tracking each one.</p>`;
-  if (live.length) h+=`<div class="dsum">${["on_track","watch","off_track","unset"].filter(k=>cnt(k)).map(k=>`<span class="tag ${k==="on_track"?"t-agreed":k==="watch"?"t-paused":k==="off_track"?"t-note":"t-open"}">${cnt(k)} ${HEALTH[k].toLowerCase()}</span>`).join("")}</div>`;
-  for (const [k,label] of Object.entries(FREQ)){
-    const items=live.filter(d=>(d.freq||"ongoing")===k); if(!items.length) continue;
-    h+=`<div class="dgroup"><h3>${label} <span class="count">${items.length}</span></h3><div class="dlist">${items.map(d=>dutyRow(d,p)).join("")}</div></div>`;
+  const match=d=> f==="all" ? d.status!=="retired" : f==="retired" ? d.status==="retired"
+    : (f in SHORT_HEALTH) ? d.status!=="retired" && (d.health||"unset")===f
+    : d.status!=="retired" && (d.freq||"ongoing")===f;
+  const rows=all.filter(match);
+  const chip=(k,label)=>`<button class="chip" data-act="dfilter" data-f="${k}" aria-pressed="${f===k}">${label}</button>`;
+  let h=`<section class="duties">
+    <div class="dsum"><span class="tag t-open">${live.length} responsibilit${live.length===1?"y":"ies"}</span>${["on_track","watch","off_track","unset"].filter(k=>cnt(k)).map(k=>`<button class="tag ${k==="on_track"?"t-agreed":k==="watch"?"t-paused":k==="off_track"?"t-note":"t-open"}" data-act="dfilter" data-f="${k}" style="cursor:pointer">${cnt(k)} ${SHORT_HEALTH[k].toLowerCase()}</button>`).join("")}</div>
+    <div class="dfilters">${chip("all","All")}${chip("watch","Needs attention")}${chip("off_track","Off track")}${chip("unset","Not checked")}<span class="fsep"></span>${Object.entries(FREQ).map(([k,v])=>chip(k,v.split(" /")[0])).join("")}${retired.length?chip("retired",`Retired (${retired.length})`):""}</div>`;
+  if (!all.length){
+    h+=`<div class="welcome"><h1>No responsibilities yet</h1><p>Add ${first}'s first one below.</p></div>`;
+  } else {
+    h+=`<div class="tt-wrap"><table class="tt"><thead><tr><th>Responsibility</th><th>How often</th><th>Method</th><th>Status</th><th>Last checked</th></tr></thead><tbody>`;
+    h+= rows.map(d=>{
+      const {title,steps}=dutyTitle(d.text), open=openDuty===d.id, hl=d.health||"unset", ck=checkedCell(d);
+      const hit=isHit(d.text,d.id)||isHit(d.track,d.id);
+      let r=`<tr class="tr h-${hl} ${open?"open":""} ${hit?"hit":""} ${d.status==="paused"?"paused":""}">
+        <td class="c-title"><button class="tt-toggle" data-act="dopen" data-id="${d.id}" aria-expanded="${open}"><span class="caret">▸</span><span class="tt-name">${esc(title)}</span>${steps?`<span class="hint">${steps} step${steps===1?"":"s"}</span>`:""}${d.status==="paused"?`<span class="tag t-paused">Paused</span>`:""}</button></td>
+        <td><select class="tt-sel" data-act="dfreq" data-id="${d.id}" aria-label="How often">${Object.entries(FREQ).map(([k,v])=>`<option value="${k}" ${(d.freq||"ongoing")===k?"selected":""}>${v.split(" /")[0]}</option>`).join("")}</select></td>
+        <td><select class="tt-sel" data-act="dmethod" data-id="${d.id}" aria-label="Tracking method">${Object.entries(METHODS).map(([k,v])=>`<option value="${k}" ${(d.method||"")===k?"selected":""}>${k===""?"Choose…":v.replace(" (Bamboo, HubSpot, Aircall)","")}</option>`).join("")}</select></td>
+        <td><select class="tt-sel health h-${hl}" data-act="dhealth" data-id="${d.id}" aria-label="Status">${Object.entries(SHORT_HEALTH).map(([k,v])=>`<option value="${k}" ${hl===k?"selected":""}>${v}</option>`).join("")}</select></td>
+        <td class="c-checked ${ck.stale&&d.checked?"stale":""}"><span class="mono" title="${d.checked?esc(fmtDate(d.checked)):"Never checked"}">${ck.txt}</span><button class="chip sm" data-act="dchecknow" data-id="${d.id}" title="Mark as checked today">✓ Today</button></td>
+      </tr>`;
+      if (open) r+=`<tr class="tt-detail"><td colspan="5"><div class="dd-grid">
+          <label>Responsibility</label>${richEl("","d:"+d.id,"dedit",`data-id="${d.id}" aria-label="Responsibility"`,d.text,"Describe the responsibility")}
+          <label>How I track it</label>${richEl("","tr:"+d.id,"dtrack",`data-id="${d.id}" aria-label="How I track it"`,d.track||"","e.g. Check BambooHR every Thursday, monthly employee tracker review")}
+          <label>Details</label><div class="dd-row">
+            <span>Since <input type="date" data-act="dsince" data-id="${d.id}" value="${esc(d.since||"")}" aria-label="Since"></span>
+            <span>Last checked <input type="date" data-act="dchecked" data-id="${d.id}" value="${esc(d.checked||"")}" aria-label="Last checked"></span>
+            <select data-act="dstatus" data-id="${d.id}" aria-label="Active, paused or retired">${Object.entries(DSTAT).map(([k,v])=>`<option value="${k}" ${(d.status||"active")===k?"selected":""}>${v}</option>`).join("")}</select>
+            <button class="btn ghost danger" data-act="ddel" data-id="${d.id}">Remove</button>
+            <button class="btn" data-act="dopen" data-id="${d.id}">Done</button>
+          </div></div></td></tr>`;
+      return r;
+    }).join("") || `<tr><td colspan="5" class="empty" style="padding:14px">Nothing matches this filter.</td></tr>`;
+    h+=`</tbody></table></div>`;
   }
-  if (!live.length) h+=`<div class="welcome"><h1>No responsibilities yet</h1><p>Add ${first}'s first one below.</p></div>`;
   h+=`<form class="add-duty" data-addduty><div class="field rich" contenteditable="true" role="textbox" aria-multiline="true" aria-label="New responsibility" data-k="addduty" data-ph="Add a responsibility. Use the bar for bold, italic or a numbered list"></div>
-    <select id="newFreq" aria-label="How often">${Object.entries(FREQ).map(([k,v])=>`<option value="${k}" ${k==="daily"?"selected":""}>${v}</option>`).join("")}</select>
+    <select id="newFreq" aria-label="How often">${Object.entries(FREQ).map(([k,v])=>`<option value="${k}" ${k==="ongoing"?"selected":""}>${v}</option>`).join("")}</select>
     <button class="btn primary" type="submit">Add</button></form>`;
-  if (retired.length) h+=`<details class="retired"><summary>Retired (${retired.length})</summary><div class="dlist">${retired.map(d=>dutyRow(d,p)).join("")}</div></details>`;
   return h+`</section>`;
 }
 const sortedTeam = () => Object.keys(team).sort((a,b)=>(team[a].name||"").localeCompare(team[b].name||""));
@@ -748,11 +831,11 @@ function addToQueue(text){ const p=people[sel.person]; p.queue ||= []; if(!p.que
 
 document.addEventListener("click", async e=>{
   const hb=e.target.closest("[data-hit]");
-  if (hb){ const h=JSON.parse(hb.dataset.hit); if (h.area==="team"){ sel.area="team"; sel.member=h.pid; } else { sel.area="ones"; sel.person=h.pid; sel.meeting=h.mid; } hitTerm=$("#q").value.trim().toLowerCase(); hitId=h.id; adding=null;
+  if (hb){ const h=JSON.parse(hb.dataset.hit); if (h.area==="team"){ sel.area="team"; sel.member=h.pid; sel.dfilter="all"; openDuty=h.id; } else { sel.area="ones"; sel.person=h.pid; sel.meeting=h.mid; } hitTerm=$("#q").value.trim().toLowerCase(); hitId=h.id; adding=null;
     $("#results").hidden=true; confirmDel=null; recapOpen=false; remember(); render();
     const el=document.querySelector(".hit"); if(el) el.scrollIntoView({block:"center",behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"}); return; }
   const ab=e.target.closest("[data-area]"); if(ab){ sel.area=ab.dataset.area; confirmDel=null; adding=null; clearHit(); remember(); render(); return; }
-  const tb=e.target.closest("[data-member]"); if(tb){ sel.member=tb.dataset.member; confirmDel=null; clearHit(); remember(); render(); return; }
+  const tb=e.target.closest("[data-member]"); if(tb){ sel.member=tb.dataset.member; sel.dfilter="all"; openDuty=null; confirmDel=null; clearHit(); remember(); render(); return; }
   const pb=e.target.closest("[data-person]"); if(pb){ sel.person=pb.dataset.person; sel.meeting=null; sel.tab="ones"; confirmDel=null; recapOpen=false; adding=null; clearHit(); remember(); render(); return; }
   const mb=e.target.closest("[data-meeting]"); if(mb){ sel.meeting=mb.dataset.meeting; sel.tab="ones"; confirmDel=null; recapOpen=false; adding=null; clearHit(); remember(); render(); if(innerWidth<=760) $("#main").scrollIntoView({block:"start"}); return; }
   const b=e.target.closest("[data-act]"); if(!b) return;
@@ -764,6 +847,8 @@ document.addEventListener("click", async e=>{
   else if (act==="odel"){ const c=getCont(M(),tid); c.outcomes=c.outcomes.filter(x=>x.id!==id); saveM(); render(); }
   else if (act==="tdel"){ M().topics=M().topics.filter(t=>t.id!==id); saveM(); render(); }
   else if (act==="park"){ const t=getCont(M(),tid); t.parked=!t.parked; if(t.parked){ addToQueue(t.text); toast("Added to next 1:1"); } saveM(); render(); }
+  else if (act==="dopen"){ openDuty = openDuty===id ? null : id; render(); }
+  else if (act==="dfilter"){ sel.dfilter = (sel.dfilter===b.dataset.f && b.dataset.f!=="all") ? "all" : b.dataset.f; openDuty=null; remember(); render(); }
   else if (act==="dchecknow"){ const d=dutyById(DO(),id); d.checked=todayISO(); saveDO(); render(); toast("Marked as checked today"); }
   else if (act==="gotoSrc"){ sel.area="ones"; sel.meeting=mid; clearHit(); remember(); render(); }
   else if (act==="ddel"){
