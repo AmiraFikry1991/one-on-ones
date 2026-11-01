@@ -165,6 +165,55 @@ main{grid-area:main;padding-block:20px 60px;padding-inline:28px;min-width:0}
 .dsum{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 .dsum button.tag{border:0}
 .dfilters{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.t-high{background:#fff1c9;color:#8a6200}
+.task-meta select.w-high{background:#fff1c9;color:#8a6200;border-color:#f1dc8e}
+.progress{display:flex;flex-direction:column;gap:16px}
+.score-cards{display:grid;grid-template-columns:150px 150px minmax(0,1fr);gap:12px}
+.scard{border:1px solid var(--line);border-radius:16px;padding:12px 14px;background:#fff;display:flex;flex-direction:column;gap:2px;min-width:0}
+.scard.good{background:#f2fbf6;border-color:#cfeedd}.scard.mid{background:#fff7f2;border-color:#f6d7c5}.scard.low{background:#fdf2f6;border-color:#f2c9d8}
+.slabel{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.sval{font-family:var(--f-display);font-size:34px;line-height:1.1;font-variant-numeric:tabular-nums}
+.scard.good .sval{color:var(--mint-ink)}.scard.mid .sval{color:var(--peach-ink)}.scard.low .sval{color:var(--rose-ink)}
+.ssub{font-size:12px;color:var(--muted)}
+.trend{width:100%;height:auto;display:block;max-width:100%}
+.trend .grid{stroke:var(--line);stroke-width:1}
+.trend .ax{fill:var(--muted);font-size:10px;font-family:var(--f-body)}
+.trend .bar.good{fill:#7fcfa2}.trend .bar.mid{fill:#f3b48f}.trend .bar.low{fill:#e98aa8}
+.trend .bar.cur{stroke:var(--ink);stroke-width:1.2}
+.trend .nodata{fill:#d9d6e3}
+.week-nav{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.week-nav .btn{padding:4px 12px;font-size:16px}
+.week-nav .btn[disabled]{opacity:.4;cursor:default}
+.wk-title{font-family:var(--f-display);font-size:20px;display:flex;align-items:center;gap:8px}
+.week-nav .hint{flex-basis:100%;font-size:12px}
+.rate-list{border:1px solid var(--line);border-radius:16px;overflow:hidden;background:#fff}
+.rate-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 14px;padding:12px 16px;align-items:center;border-left:4px solid transparent}
+.rate-row + .rate-row{border-top:1px solid var(--line)}
+.rate-row.r-on_track{border-left-color:#7fcfa2}.rate-row.r-watch{border-left-color:#f3b48f}.rate-row.r-off_track{border-left-color:#e98aa8}.rate-row.r-na{border-left-color:#d9d6e3}
+.rate-task{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;font-weight:600;min-width:0}
+.rate-btns{display:flex;gap:4px;flex-wrap:wrap}
+.rbtn{border:1px solid var(--line);background:#fff;border-radius:99px;padding:4px 11px;font-size:12.5px;font-weight:600;color:var(--muted)}
+.rbtn:hover{border-color:var(--lav-2);color:var(--ink)}
+.rbtn.r-on_track[aria-pressed="true"]{background:var(--mint);color:var(--mint-ink);border-color:#bfe6cf}
+.rbtn.r-watch[aria-pressed="true"]{background:var(--peach);color:var(--peach-ink);border-color:#f6c9b4}
+.rbtn.r-off_track[aria-pressed="true"]{background:var(--rose);color:var(--rose-ink);border-color:#f2c4d6}
+.rbtn.r-na[aria-pressed="true"]{background:#efeef4;color:var(--ink);border-color:#d9d6e3}
+.rate-note{grid-column:1 / -1;padding:6px 10px;font-size:13px}
+.heat-wrap{border:1px solid var(--line);border-radius:16px;overflow-x:auto;background:#fff}
+.heat{border-collapse:collapse;width:100%;min-width:640px;font-size:13px}
+.heat th{font-size:10.5px;font-weight:700;color:var(--muted);padding:8px 4px;background:var(--wash);border-bottom:1px solid var(--line);white-space:nowrap;text-align:center}
+.heat th:first-child{text-align:left;padding-left:14px}
+.heat td{padding:6px 3px;text-align:center;border-bottom:1px solid var(--line)}
+.heat tbody tr:last-child td{border-bottom:0}
+.ht-name{text-align:left!important;padding-left:14px!important;max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
+.hc{display:inline-block;width:16px;height:16px;border-radius:4px;background:#f1f0f5;border:1px dashed #d9d6e3;vertical-align:middle}
+.hc.h-on_track{background:#7fcfa2;border:0}.hc.h-watch{background:#f3b48f;border:0}.hc.h-off_track{background:#e98aa8;border:0}.hc.h-na{background:#d9d6e3;border:0}.hc.h-unset{background:#f1f0f5}
+.ht-avg{font-family:var(--f-mono);font-size:12px;font-weight:600;padding-right:12px!important}
+.ht-avg.good{color:var(--mint-ink)}.ht-avg.mid{color:var(--peach-ink)}.ht-avg.low{color:var(--rose-ink)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.legend span{display:flex;align-items:center;gap:6px}
+.legend .hc{width:12px;height:12px}
+@media (max-width:760px){ .score-cards{grid-template-columns:1fr 1fr} .trend-card{grid-column:1 / -1} .rate-row{grid-template-columns:minmax(0,1fr)} }
 .tasks{border:1px solid var(--line);border-radius:16px;overflow:hidden;background:#fff}
 .tasks-head{display:grid;grid-template-columns:30px minmax(0,1fr) 280px;gap:14px;padding:9px 16px;background:var(--wash);border-bottom:1px solid var(--line);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
 .tasks-head span:first-child{grid-column:2}
@@ -569,7 +618,7 @@ async function loadAll(){
   if (!sel.member || !team[sel.member]) sel.member = sortedTeam()[0] || null;
   setStatus("All changes saved");
   const ae=document.activeElement;
-  if (ae && ae.matches && ae.matches(".rich, textarea, input.txt, .inline-add input, .add-topic input, #q, .addp input, .dtrack input, .add-duty input")){ if(sel.area==="team") renderTeamList(); else renderPeople(); return; }
+  if (ae && ae.matches && ae.matches(".rich, textarea, input.txt, .inline-add input, .add-topic input, #q, .addp input, .dtrack input, .add-duty input, .rate-note")){ if(sel.area==="team") renderTeamList(); else renderPeople(); return; }
   render();
 }
 
@@ -700,9 +749,11 @@ function checkedCell(d){
   return {txt, stale: days > (STALE_DAYS[d.freq||"ongoing"]||30)};
 }
 let logFor=null, histFor=null;
-const HTAG={unset:"t-open",on_track:"t-agreed",watch:"t-paused",off_track:"t-note"};
+const HTAG={unset:"t-open",on_track:"t-agreed",watch:"t-paused",off_track:"t-note",na:"t-open"};
+const RLABEL={unset:"No rating",on_track:"On track",watch:"Needs attention",off_track:"Off track",na:"Not applicable"};
+const rated = l => l && l.health && l.health!=="unset" && l.health!=="na";
 const sortedLog = d => [...(d.log||[])].sort((a,b)=>(a.date||"").localeCompare(b.date||"") || (a.at||0)-(b.at||0));
-function syncFromLog(d){ const l=sortedLog(d), last=l[l.length-1]; d.health = last ? (last.health||"unset") : "unset"; d.checked = last ? last.date : ""; }
+function syncFromLog(d){ const l=sortedLog(d).filter(rated), last=l[l.length-1]; d.health = last ? last.health : "unset"; d.checked = last ? last.date : ""; }
 function migrateLog(d){
   if (d.log) return;
   d.log=[];
@@ -724,13 +775,14 @@ function dutiesHTML(p){
     <div class="tasks">
       <div class="tasks-head"><span>Task${rows.length>1?` <em class="hint" style="text-transform:none;letter-spacing:0;font-weight:500">· drag the numbers to reorder</em>`:""}</span><span>How I'm tracking it</span></div>`;
   h += rows.map((d,i)=>{
-    migrateLog(d); const log=sortedLog(d), latest=log[log.length-1], hl=d.health||"unset", ck=checkedCell(d);
+    migrateLog(d); const log=sortedLog(d), latest=[...log].reverse().find(rated)||null, older=log.filter(l=>l!==latest), hl=d.health||"unset", ck=checkedCell(d);
     return `<div class="task h-${hl} ${d.status==="paused"?"paused":""} ${isHit(d.text,d.id)||log.some(l=>isHit(l.note,d.id))?"hit":""}" data-row="${d.id}">
       <button type="button" class="num drag" data-drag="${d.id}" data-kind="task" title="Drag to reorder" aria-label="Task ${i+1}. Drag, or use the arrow keys, to reorder">${i+1}</button>
       <div class="task-main">
         ${richEl("","d:"+d.id,"dedit",`data-id="${d.id}" aria-label="Task"`,d.text,"Describe the task")}
         <div class="task-meta">
           <select data-act="dfreq" data-id="${d.id}" aria-label="How often">${Object.entries(FREQ).map(([k,v])=>`<option value="${k}" ${(d.freq||"ongoing")===k?"selected":""}>${v.split(" /")[0]}</option>`).join("")}</select>
+          <select data-act="dweight" data-id="${d.id}" class="${d.weight==="high"?"w-high":""}" aria-label="Importance"><option value="normal" ${d.weight!=="high"?"selected":""}>Normal importance</option><option value="high" ${d.weight==="high"?"selected":""}>★ High importance</option></select>
           <select data-act="dstatus" data-id="${d.id}" aria-label="Active, paused or retired">${Object.entries(DSTAT).map(([k,v])=>`<option value="${k}" ${(d.status||"active")===k?"selected":""}>${v}</option>`).join("")}</select>
           <button class="x" data-act="ddel" data-id="${d.id}" aria-label="Remove task">✕ Remove</button>
         </div>
@@ -753,10 +805,10 @@ function dutiesHTML(p){
             <div class="tb-form-row"><button class="btn primary" data-act="logsave" data-id="${d.id}">Save update</button><button class="btn ghost" data-act="logcancel">Cancel</button></div>
           </div>` : `<div class="tb-foot">
             <button class="chip sm" data-act="logadd" data-id="${d.id}">+ Add update</button>
-            ${log.length>1?`<button class="chip sm" data-act="loghist" data-id="${d.id}" aria-expanded="${histFor===d.id}">${histFor===d.id?"Hide history":`History (${log.length-1})`}</button>`:""}
+            ${older.length?`<button class="chip sm" data-act="loghist" data-id="${d.id}" aria-expanded="${histFor===d.id}">${histFor===d.id?"Hide history":`History (${older.length})`}</button>`:""}
           </div>`}
-        ${histFor===d.id && log.length>1 ? `<ol class="tb-hist">${log.slice(0,-1).reverse().map(l=>`<li>
-            <div class="tb-hist-top"><span class="mono">${esc(fmtDate(l.date))}</span><span class="tag ${HTAG[l.health||"unset"]}">${SHORT_HEALTH[l.health||"unset"]}</span>
+        ${histFor===d.id && older.length ? `<ol class="tb-hist">${older.slice().reverse().map(l=>`<li>
+            <div class="tb-hist-top"><span class="mono">${esc(fmtDate(l.date))}</span><span class="tag ${HTAG[l.health||"unset"]}">${RLABEL[l.health||"unset"]}</span>
               <button class="x" data-act="logdel" data-id="${d.id}" data-lid="${l.id}" aria-label="Delete this update">✕</button></div>
             ${plain(l.note)?`<div class="rich-view">${clean(l.note)}</div>`:""}</li>`).join("")}</ol>` : ""}
       </div>
@@ -767,6 +819,7 @@ function dutiesHTML(p){
     <button class="btn primary" type="submit">Add</button></form></div>`;
   return h+`</section>`;
 }
+function avg13(p){ const cur=weekStart(todayISO()); const v=[]; for(let i=0;i<13;i++){ const s=weekScore(p,addDays(cur,-7*i)).score; if(s!=null) v.push(s); } return v.length?Math.round(v.reduce((a,b)=>a+b,0)/v.length):null; }
 const sortedTeam = () => Object.keys(team).sort((a,b)=>(team[a].name||"").localeCompare(team[b].name||""));
 function renderTeamList(){
   const ids=sortedTeam();
@@ -774,18 +827,105 @@ function renderTeamList(){
     const p=team[id], live=(p.duties||[]).filter(d=>d.status!=="retired"), flag=live.filter(d=>d.health==="watch"||d.health==="off_track").length;
     return `<button class="person" data-member="${id}" aria-current="${sel.member===id}">
       <span class="avatar">${esc(initials(p.name||"?"))}</span>
-      <span class="meta"><span class="nm">${esc(p.name)}</span><span class="sub">${esc(p.role||"")}${p.role?" · ":""}${live.length} task${live.length===1?"":"s"}</span></span>
+      <span class="meta"><span class="nm">${esc(p.name)}</span><span class="sub">${esc(p.role||"")}${p.role?" · ":""}${live.length} task${live.length===1?"":"s"}${(()=>{ const a=avg13(p); return a==null?"":` · ${a}%`; })()}</span></span>
       ${flag?`<span class="badge" title="Need attention or off track">${flag}</span>`:""}</button>`;
   }).join("") : `<div class="empty">No team members yet.</div>`;
 }
+/* ---------- weekly progress & scoring ---------- */
+const PTS = {on_track:1, watch:0.5, off_track:0};
+const isoOf = dt => { const x=new Date(dt); x.setMinutes(x.getMinutes()-x.getTimezoneOffset()); return x.toISOString().slice(0,10); };
+const addDays = (iso,n) => { const x=new Date(iso+"T12:00:00"); x.setDate(x.getDate()+n); return isoOf(x); };
+const weekStart = iso => { const x=new Date(iso+"T12:00:00"); x.setDate(x.getDate()-x.getDay()); return isoOf(x); };
+const fmtDM = iso => new Date(iso+"T12:00:00").toLocaleDateString(undefined,{day:"numeric",month:"short"});
+const weightOf = d => d.weight==="high" ? 2 : 1;
+function weekEntry(d,W){ const l=sortedLog(d).filter(x=>weekStart(x.date)===W); return l[l.length-1]||null; }
+function weekScore(p,W){
+  let sum=0, wsum=0, n=0, due=0;
+  for (const d of (p.duties||[])){
+    if (d.status==="retired" && !weekEntry(d,W)) continue;
+    const e=weekEntry(d,W);
+    if (e && e.health==="na") continue;
+    if (d.status!=="paused" || e) due++;
+    if (rated(e)){ sum+=weightOf(d)*PTS[e.health]; wsum+=weightOf(d); n++; }
+  }
+  return { score: wsum ? Math.round(sum/wsum*100) : null, rated:n, due };
+}
+const band = v => v==null ? "none" : v>=80 ? "good" : v>=60 ? "mid" : "low";
+function trendSVG(weeks){
+  const W=560, H=150, L=34, R=8, T=10, B=26, bw=(W-L-R)/weeks.length;
+  const y=v=>T+(H-T-B)*(1-v/100);
+  let g=[0,50,100].map(v=>`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" class="grid"/><text x="${L-6}" y="${y(v)+3.5}" text-anchor="end" class="ax">${v}%</text>`).join("");
+  weeks.forEach((w,i)=>{
+    const x=L+i*bw+bw*0.18, bwid=bw*0.64;
+    if (w.score==null) g+=`<rect x="${x}" y="${y(0)-2}" width="${bwid}" height="2" class="nodata"><title>${fmtDM(w.W)}: not rated</title></rect>`;
+    else g+=`<rect x="${x}" y="${y(w.score)}" width="${bwid}" height="${Math.max(2,y(0)-y(w.score))}" rx="3" class="bar ${band(w.score)} ${w.current?"cur":""}"><title>Week of ${fmtDM(w.W)}: ${w.score}% (${w.rated} rated)</title></rect>`;
+    if (i%2===0 || i===weeks.length-1) g+=`<text x="${L+i*bw+bw/2}" y="${H-8}" text-anchor="middle" class="ax">${fmtDM(w.W)}</text>`;
+  });
+  return `<svg viewBox="0 0 ${W} ${H}" class="trend" role="img" aria-label="Weekly score over the last ${weeks.length} weeks">${g}</svg>`;
+}
+function progressHTML(p){
+  const today=todayISO(), curW=weekStart(today);
+  let W = sel.week && sel.week<=curW ? weekStart(sel.week) : curW;
+  const active=(p.duties||[]).filter(d=>d.status!=="retired");
+  const weeks=[]; for (let i=12;i>=0;i--){ const w=addDays(curW,-7*i); weeks.push({W:w, current:w===curW, ...weekScore(p,w)}); }
+  const withData=weeks.filter(w=>w.score!=null);
+  const avg = withData.length ? Math.round(withData.reduce((a,w)=>a+w.score,0)/withData.length) : null;
+  const ws=weekScore(p,W);
+  const first=esc((p.name||"").split(" ")[0]);
+  if (!active.length) return `<div class="welcome"><h1>No tasks to rate yet</h1><p>Add ${first}'s tasks in the Tasks tab first. Each week you'll rate them here and the score builds automatically.</p></div>`;
+  let h=`<section class="progress">
+    <div class="score-cards">
+      <div class="scard ${band(ws.score)}"><div class="slabel">Week of ${esc(fmtDM(W))}</div><div class="sval">${ws.score==null?"–":ws.score+"%"}</div><div class="ssub">${ws.rated} of ${ws.due} tasks rated</div></div>
+      <div class="scard ${band(avg)}"><div class="slabel">Last 13 weeks</div><div class="sval">${avg==null?"–":avg+"%"}</div><div class="ssub">average of ${withData.length} rated week${withData.length===1?"":"s"}</div></div>
+      <div class="scard trend-card"><div class="slabel">Weekly score</div>${trendSVG(weeks)}</div>
+    </div>
+    <div class="week-nav">
+      <button class="btn" data-act="wk" data-dir="-1" aria-label="Previous week">‹</button>
+      <div class="wk-title">Week of ${esc(fmtDate(W))}${W===curW?` <span class="tag t-open">This week</span>`:""}</div>
+      <button class="btn" data-act="wk" data-dir="1" ${W>=curW?"disabled":""} aria-label="Next week">›</button>
+      ${W!==curW?`<button class="chip sm" data-act="wk" data-dir="0">Back to this week</button>`:""}
+      <span class="hint">On track = 100%, Needs attention = 50%, Off track = 0%. High importance counts double. Not applicable is left out.</span>
+    </div>
+    <div class="rate-list">`;
+  h += active.map(d=>{
+    const e=weekEntry(d,W), cur=e?e.health:"", {title}=dutyTitle(d.text);
+    const btn=(k,label)=>`<button class="rbtn r-${k}" data-act="wrate" data-id="${d.id}" data-h="${k}" aria-pressed="${cur===k}">${label}</button>`;
+    return `<div class="rate-row ${cur?"r-"+cur:""}">
+      <div class="rate-task"><span class="rt-name">${esc(title)}</span>${d.weight==="high"?`<span class="tag t-high">★ High</span>`:""}${d.status==="paused"?`<span class="tag t-paused">Paused</span>`:""}</div>
+      <div class="rate-btns" role="group" aria-label="Rating">${btn("on_track","On track")}${btn("watch","Needs attention")}${btn("off_track","Off track")}${btn("na","N/A")}</div>
+      <input class="field rate-note" data-k="wn:${d.id}" data-act="wnote" data-id="${d.id}" value="${esc(e?plain(e.note):"")}" placeholder="Note for this week (optional)">
+    </div>`;
+  }).join("");
+  h += `</div>
+    <h3 class="block-h">Last 13 weeks by task <span class="hint">Each square is a week; hover for details</span></h3>
+    <div class="heat-wrap"><table class="heat"><thead><tr><th>Task</th>${weeks.map(w=>`<th title="Week of ${esc(fmtDM(w.W))}">${w.current?"Now":esc(fmtDM(w.W).split(" ")[0])}</th>`).join("")}<th>Avg</th></tr></thead><tbody>`;
+  h += active.map(d=>{
+    let s=0,n=0; const cells=weeks.map(w=>{ const e=weekEntry(d,w.W), k=e?e.health:"";
+      if (rated(e)){ s+=PTS[k]; n++; }
+      return `<td><span class="hc ${k?"h-"+k:""}" title="Week of ${esc(fmtDM(w.W))}: ${k?RLABEL[k]:"not rated"}${e&&plain(e.note)?" · "+esc(oneLine(e.note)):""}"></span></td>`; }).join("");
+    const a=n?Math.round(s/n*100):null;
+    return `<tr><td class="ht-name">${esc(dutyTitle(d.text).title)}${d.weight==="high"?" ★":""}</td>${cells}<td class="ht-avg ${band(a)}">${a==null?"–":a+"%"}</td></tr>`;
+  }).join("");
+  h += `</tbody></table></div>
+    <div class="legend"><span><i class="hc h-on_track"></i>On track</span><span><i class="hc h-watch"></i>Needs attention</span><span><i class="hc h-off_track"></i>Off track</span><span><i class="hc h-na"></i>N/A</span><span><i class="hc"></i>Not rated</span></div>
+  </section>`;
+  return h;
+}
+function dateForWeek(W){ const t=todayISO(); return weekStart(t)===W ? t : addDays(W,4); }
 function renderTeamMain(){
   const main=$("#main");
   if (!team[sel.member]) sel.member = sortedTeam()[0] || null;
   const p=team[sel.member];
   if (!p){ main.innerHTML=`<div class="welcome"><h1>My team</h1><p>Add each of your direct reports on the left. For each person you can keep their day-to-day responsibilities, how often each one happens, how you track it, and whether it's on track.</p></div>`; return; }
+  (p.duties||[]).forEach(migrateLog);
+  const tab = sel.mtab==="progress" ? "progress" : "tasks";
   main.innerHTML = `<div class="team-head"><div><h1>${esc(p.name)}</h1><div class="role">${esc(p.role||"Team member")}</div></div>
-    <div class="actions"><button class="btn ghost danger" data-act="delMember">${confirmDel==="tm:"+sel.member?"Click again to remove "+esc((p.name||"").split(" ")[0]):"Remove from team"}</button></div></div>`
-    + dutiesHTML(p);
+    <div class="actions"><button class="btn ghost danger" data-act="delMember">${confirmDel==="tm:"+sel.member?"Click again to remove "+esc((p.name||"").split(" ")[0]):"Remove from team"}</button></div></div>
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" data-act="mtab" data-tab="tasks" aria-selected="${tab==="tasks"}">Tasks</button>
+      <button class="tab" role="tab" data-act="mtab" data-tab="progress" aria-selected="${tab==="progress"}">Weekly progress</button>
+    </div>`
+    + (tab==="progress" ? progressHTML(p) : dutiesHTML(p));
 }
 function renderMain(){
   const main=$("#main"), p=people[sel.person];
@@ -906,11 +1046,11 @@ function addToQueue(text){ const p=people[sel.person]; p.queue ||= []; if(!p.que
 
 document.addEventListener("click", async e=>{
   const hb=e.target.closest("[data-hit]");
-  if (hb){ const h=JSON.parse(hb.dataset.hit); if (h.area==="team"){ sel.area="team"; sel.member=h.pid; sel.dfilter="all"; openDuty=h.id; } else { sel.area="ones"; sel.person=h.pid; sel.meeting=h.mid; } hitTerm=$("#q").value.trim().toLowerCase(); hitId=h.id; adding=null;
+  if (hb){ const h=JSON.parse(hb.dataset.hit); if (h.area==="team"){ sel.area="team"; sel.member=h.pid; sel.mtab="tasks"; sel.dfilter="all"; openDuty=h.id; } else { sel.area="ones"; sel.person=h.pid; sel.meeting=h.mid; } hitTerm=$("#q").value.trim().toLowerCase(); hitId=h.id; adding=null;
     $("#results").hidden=true; confirmDel=null; recapOpen=false; remember(); render();
     const el=document.querySelector(".hit"); if(el) el.scrollIntoView({block:"center",behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"}); return; }
   const ab=e.target.closest("[data-area]"); if(ab){ sel.area=ab.dataset.area; confirmDel=null; adding=null; clearHit(); remember(); render(); return; }
-  const tb=e.target.closest("[data-member]"); if(tb){ sel.member=tb.dataset.member; sel.dfilter="all"; openDuty=null; logFor=null; histFor=null; confirmDel=null; clearHit(); remember(); render(); return; }
+  const tb=e.target.closest("[data-member]"); if(tb){ sel.member=tb.dataset.member; sel.week=null; sel.dfilter="all"; openDuty=null; logFor=null; histFor=null; confirmDel=null; clearHit(); remember(); render(); return; }
   const pb=e.target.closest("[data-person]"); if(pb){ sel.person=pb.dataset.person; sel.meeting=null; sel.tab="ones"; confirmDel=null; recapOpen=false; adding=null; clearHit(); remember(); render(); return; }
   const mb=e.target.closest("[data-meeting]"); if(mb){ sel.meeting=mb.dataset.meeting; sel.tab="ones"; confirmDel=null; recapOpen=false; adding=null; clearHit(); remember(); render(); if(innerWidth<=760) $("#main").scrollIntoView({block:"start"}); return; }
   const b=e.target.closest("[data-act]"); if(!b) return;
@@ -922,6 +1062,15 @@ document.addEventListener("click", async e=>{
   else if (act==="odel"){ const c=getCont(M(),tid); c.outcomes=c.outcomes.filter(x=>x.id!==id); saveM(); render(); }
   else if (act==="tdel"){ M().topics=M().topics.filter(t=>t.id!==id); saveM(); render(); }
   else if (act==="park"){ const t=getCont(M(),tid); t.parked=!t.parked; if(t.parked){ addToQueue(t.text); toast("Added to next 1:1"); } saveM(); render(); }
+  else if (act==="mtab"){ sel.mtab=b.dataset.tab; logFor=null; histFor=null; remember(); render(); }
+  else if (act==="wk"){ const cur=weekStart(todayISO()), base=sel.week?weekStart(sel.week):cur, dir=+b.dataset.dir; sel.week = dir===0 ? cur : addDays(base,7*dir); if (sel.week>cur) sel.week=cur; remember(); render(); }
+  else if (act==="wrate"){
+    const d=dutyById(DO(),id); if(!d) return; migrateLog(d);
+    const W=sel.week?weekStart(sel.week):weekStart(todayISO()), e=weekEntry(d,W), h=b.dataset.h;
+    if (e) e.health = (e.health===h ? "unset" : h);
+    else d.log.push({id:uid(), date:dateForWeek(W), health:h, note:"", at:Date.now()});
+    syncFromLog(d); saveDO(); render();
+  }
   else if (act==="logadd"){ logFor=id; histFor=null; render(); document.querySelector(`[data-k="ln:${id}"]`)?.focus(); }
   else if (act==="logcancel"){ logFor=null; render(); }
   else if (act==="loghist"){ histFor = histFor===id ? null : id; render(); }
@@ -995,6 +1144,7 @@ document.addEventListener("change", e=>{
   else if (act==="mdate" && t.value){ M().date=t.value; saveM(); render(); }
   else if (act==="mstatus"){ M().status=t.value; saveM(); render(); }
   else if (act==="mchannel"){ M().channel=t.value; saveM(); render(); }
+  else if (act==="dweight"){ const d=dutyById(DO(),t.dataset.id); if(d){ d.weight=t.value; saveDO(); render(); } }
   else if (act==="dfreq"||act==="dstatus"||act==="dsince"||act==="dhealth"||act==="dchecked"||act==="dmethod"){
     const d=dutyById(DO(),t.dataset.id); if(!d) return;
     if (act==="dfreq") d.freq=t.value; else if (act==="dstatus") d.status=t.value; else if (act==="dsince") d.since=t.value;
@@ -1008,6 +1158,13 @@ document.addEventListener("input", e=>{
   const t=e.target, act=t.dataset.act; if(!act) return;
   if (act==="tedit"){ const x=M().topics.find(y=>y.id===t.dataset.id); if(x){ x.text=clean(t.innerHTML); saveM(); } }
   else if (act==="oedit"){ const o=getCont(M(),t.dataset.tid).outcomes.find(y=>y.id===t.dataset.id); if(o){ o.text=clean(t.innerHTML); saveM(); } }
+  else if (act==="wnote"){
+    const d=dutyById(DO(),t.dataset.id); if(!d) return; migrateLog(d);
+    const W=sel.week?weekStart(sel.week):weekStart(todayISO());
+    let e=weekEntry(d,W);
+    if (!e){ e={id:uid(), date:dateForWeek(W), health:"unset", note:"", at:Date.now()}; d.log.push(e); }
+    e.note=esc(t.value); saveDO(800);
+  }
   else if (act==="dtrack"){ const d=dutyById(DO(),t.dataset.id); if(d){ d.track=clean(t.innerHTML); saveDO(700); } }
   else if (act==="dedit"){ const d=dutyById(DO(),t.dataset.id); if(d){ d.text=clean(t.innerHTML); saveDO(); } }
   else if (act==="qedit"){ const q=(people[sel.person].queue||[]).find(y=>y.id===t.dataset.id); if(q){ q.text=clean(t.innerHTML); schedule("people",sel.person); } }
