@@ -213,6 +213,9 @@ main{grid-area:main;padding-block:20px 60px;padding-inline:28px;min-width:0}
 .oo-add-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:12.5px;color:var(--muted)}
 .oo-add-row .btn{margin-left:auto}
 .oo-heat td{background:#fafcff}
+.when-toggle{display:block;width:100%;text-align:left;border:0;cursor:pointer}
+.when-toggle:hover{color:var(--ink)}
+.hc.idle{background:transparent;border:1px dotted #e3e0ec}
 .heat-wrap{border:1px solid var(--line);border-radius:16px;overflow-x:auto;background:#fff}
 .heat{border-collapse:collapse;width:100%;min-width:640px;font-size:13px}
 .heat th{font-size:10.5px;font-weight:700;color:var(--muted);padding:8px 4px;background:var(--wash);border-bottom:1px solid var(--line);white-space:nowrap;text-align:center}
@@ -796,6 +799,7 @@ function dutiesHTML(p){
         ${richEl("","d:"+d.id,"dedit",`data-id="${d.id}" aria-label="Task"`,d.text,"Describe the task")}
         <div class="task-meta">
           <select data-act="dfreq" data-id="${d.id}" aria-label="How often">${Object.entries(FREQ).map(([k,v])=>`<option value="${k}" ${(d.freq||"ongoing")===k?"selected":""}>${v.split(" /")[0]}</option>`).join("")}</select>
+          <select data-act="drate" data-id="${d.id}" aria-label="When to rate">${[["weekly","Rate every week"],["when","Rate only when it happens"]].map(([k,v])=>`<option value="${k}" ${rateMode(d)===k?"selected":""}>${v}</option>`).join("")}</select>
           <select data-act="dweight" data-id="${d.id}" class="${d.weight==="high"?"w-high":""}" aria-label="Importance"><option value="normal" ${d.weight!=="high"?"selected":""}>Normal importance</option><option value="high" ${d.weight==="high"?"selected":""}>★ High importance</option></select>
           <select data-act="dstatus" data-id="${d.id}" aria-label="Active, paused or retired">${Object.entries(DSTAT).map(([k,v])=>`<option value="${k}" ${(d.status||"active")===k?"selected":""}>${v}</option>`).join("")}</select>
           <button class="x" data-act="ddel" data-id="${d.id}" aria-label="Remove task">✕ Remove</button>
@@ -851,6 +855,7 @@ const isoOf = dt => { const x=new Date(dt); x.setMinutes(x.getMinutes()-x.getTim
 const addDays = (iso,n) => { const x=new Date(iso+"T12:00:00"); x.setDate(x.getDate()+n); return isoOf(x); };
 const weekStart = iso => { const x=new Date(iso+"T12:00:00"); x.setDate(x.getDate()-x.getDay()); return isoOf(x); };
 const fmtDM = iso => new Date(iso+"T12:00:00").toLocaleDateString(undefined,{day:"numeric",month:"short"});
+const rateMode = d => d.rate || (["daily","weekly"].includes(d.freq||"ongoing") ? "weekly" : "when");
 const weightOf = d => d.weight==="high" ? 2 : 1;
 function weekEntry(d,W){ const l=sortedLog(d).filter(x=>weekStart(x.date)===W); return l[l.length-1]||null; }
 function weekScore(p,W){
@@ -859,6 +864,7 @@ function weekScore(p,W){
     if (d.status==="retired" && !weekEntry(d,W)) continue;
     const e=weekEntry(d,W);
     if (e && e.health==="na") continue;
+    if (rateMode(d)==="when" && !rated(e)) continue;
     if (d.status!=="paused" || e) due++;
     if (rated(e)){ sum+=weightOf(d)*PTS[e.health]; wsum+=weightOf(d); n++; }
   }
@@ -902,11 +908,13 @@ function progressHTML(p){
       <div class="wk-title">Week of ${esc(fmtDate(W))}${W===curW?` <span class="tag t-open">This week</span>`:""}</div>
       <button class="btn" data-act="wk" data-dir="1" ${W>=curW?"disabled":""} aria-label="Next week">›</button>
       ${W!==curW?`<button class="chip sm" data-act="wk" data-dir="0">Back to this week</button>`:""}
-      <span class="hint">On track = 100%, Needs attention = 50%, Off track = 0%. High importance counts double. Not applicable is left out.</span>
+      <span class="hint">On track = 100%, Needs attention = 50%, Off track = 0%. High importance counts double. N/A, and tasks that didn't come up this week, are left out.</span>
     </div>
     <h3 class="block-h">Regular tasks</h3>
     <div class="rate-list">${active.length?"":`<div class="empty" style="padding:12px 16px">No regular tasks yet. Add ${first}'s tasks in the Tasks tab.</div>`}`;
-  h += active.map(d=>{
+  const inWeek = d => rateMode(d)==="weekly" || !!weekEntry(d,W);
+  const shown=active.filter(inWeek), sometimes=active.filter(d=>!inWeek(d));
+  const rateRow = d=>{
     const e=weekEntry(d,W), cur=e?e.health:"", {title}=dutyTitle(d.text);
     const btn=(k,label)=>`<button class="rbtn r-${k}" data-act="wrate" data-id="${d.id}" data-h="${k}" aria-pressed="${cur===k}">${label}</button>`;
     return `<div class="rate-row ${cur?"r-"+cur:""}">
@@ -914,7 +922,13 @@ function progressHTML(p){
       <div class="rate-btns" role="group" aria-label="Rating">${btn("on_track","On track")}${btn("watch","Needs attention")}${btn("off_track","Off track")}${btn("na","N/A")}</div>
       <input class="field rate-note" data-k="wn:${d.id}" data-act="wnote" data-id="${d.id}" value="${esc(e?plain(e.note):"")}" placeholder="Note for this week (optional)">
     </div>`;
-  }).join("");
+  };
+  h += shown.map(rateRow).join("");
+  if (active.length && !shown.length) h += `<div class="empty" style="padding:12px 16px">Nothing is set to be rated every week.</div>`;
+  if (sometimes.length){
+    h += `<button class="oo-sub when-toggle" data-act="whenToggle" aria-expanded="${!!sel.whenOpen}">${sel.whenOpen?"▾":"▸"} Only when they happen (${sometimes.length}) <span class="hint" style="text-transform:none;letter-spacing:0;font-weight:500">· not counted unless you rate them this week</span></button>`;
+    if (sel.whenOpen) h += sometimes.map(rateRow).join("");
+  }
   h += `</div>`;
   // ----- one-off tasks
   const OO={on_track:"Done", watch:"Done late", off_track:"Not done", na:"Cancelled"};
@@ -951,6 +965,7 @@ function progressHTML(p){
     <div class="heat-wrap"><table class="heat"><thead><tr><th>Task</th>${weeks.map(w=>`<th title="Week of ${esc(fmtDM(w.W))}">${w.current?"Now":esc(fmtDM(w.W).split(" ")[0])}</th>`).join("")}<th>Avg</th></tr></thead><tbody>`;
   h += active.map(d=>{
     let s=0,n=0; const cells=weeks.map(w=>{ const e=weekEntry(d,w.W), k=e?e.health:"";
+      if (!e && rateMode(d)==="when") return `<td><span class="hc idle" title="Week of ${esc(fmtDM(w.W))}: didn't come up"></span></td>`;
       if (rated(e)){ s+=PTS[k]; n++; }
       return `<td><span class="hc ${k?"h-"+k:""}" title="Week of ${esc(fmtDM(w.W))}: ${k?RLABEL[k]:"not rated"}${e&&plain(e.note)?" · "+esc(oneLine(e.note)):""}"></span></td>`; }).join("");
     const a=n?Math.round(s/n*100):null;
@@ -970,7 +985,7 @@ function progressHTML(p){
     h += `<tr class="oo-heat"><td class="ht-name">One-off tasks</td>${cells}<td class="ht-avg ${band(a)}">${a==null?"–":a+"%"}</td></tr>`;
   }
   h += `</tbody></table></div>
-    <div class="legend"><span><i class="hc h-on_track"></i>On track</span><span><i class="hc h-watch"></i>Needs attention</span><span><i class="hc h-off_track"></i>Off track</span><span><i class="hc h-na"></i>N/A</span><span><i class="hc"></i>Not rated</span></div>
+    <div class="legend"><span><i class="hc h-on_track"></i>On track</span><span><i class="hc h-watch"></i>Needs attention</span><span><i class="hc h-off_track"></i>Off track</span><span><i class="hc h-na"></i>N/A</span><span><i class="hc"></i>Not rated</span><span><i class="hc idle"></i>Didn't come up</span></div>
   </section>`;
   return h;
 }
@@ -1126,6 +1141,7 @@ document.addEventListener("click", async e=>{
   else if (act==="odel"){ const c=getCont(M(),tid); c.outcomes=c.outcomes.filter(x=>x.id!==id); saveM(); render(); }
   else if (act==="tdel"){ M().topics=M().topics.filter(t=>t.id!==id); saveM(); render(); }
   else if (act==="park"){ const t=getCont(M(),tid); t.parked=!t.parked; if(t.parked){ addToQueue(t.text); toast("Added to next 1:1"); } saveM(); render(); }
+  else if (act==="whenToggle"){ sel.whenOpen=!sel.whenOpen; remember(); render(); }
   else if (act==="mtab"){ sel.mtab=b.dataset.tab; logFor=null; histFor=null; remember(); render(); }
   else if (act==="wk"){ const cur=weekStart(todayISO()), base=sel.week?weekStart(sel.week):cur, dir=+b.dataset.dir; sel.week = dir===0 ? cur : addDays(base,7*dir); if (sel.week>cur) sel.week=cur; remember(); render(); }
   else if (act==="wrate"){
@@ -1221,6 +1237,7 @@ document.addEventListener("change", e=>{
   else if (act==="mstatus"){ M().status=t.value; saveM(); render(); }
   else if (act==="mchannel"){ M().channel=t.value; saveM(); render(); }
   else if (act==="oodue"||act==="ooweight"){ const o=(DO().oneoffs||[]).find(x=>x.id===t.dataset.id); if(!o) return; if(act==="oodue") o.due=t.value; else o.weight=t.value; saveDO(); render(); }
+  else if (act==="drate"){ const d=dutyById(DO(),t.dataset.id); if(d){ d.rate=t.value; saveDO(); render(); } }
   else if (act==="dweight"){ const d=dutyById(DO(),t.dataset.id); if(d){ d.weight=t.value; saveDO(); render(); } }
   else if (act==="dfreq"||act==="dstatus"||act==="dsince"||act==="dhealth"||act==="dchecked"||act==="dmethod"){
     const d=dutyById(DO(),t.dataset.id); if(!d) return;
