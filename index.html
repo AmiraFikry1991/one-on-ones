@@ -165,6 +165,38 @@ main{grid-area:main;padding-block:20px 60px;padding-inline:28px;min-width:0}
 .dsum{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 .dsum button.tag{border:0}
 .dfilters{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.tasks{border:1px solid var(--line);border-radius:16px;overflow:hidden;background:#fff}
+.tasks-head{display:grid;grid-template-columns:30px minmax(0,1fr) 280px;gap:14px;padding:9px 16px;background:var(--wash);border-bottom:1px solid var(--line);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.tasks-head span:first-child{grid-column:2}
+.task{display:grid;grid-template-columns:30px minmax(0,1fr) 280px;gap:10px 14px;padding:14px 16px;align-items:start}
+.task + .task{border-top:1px solid var(--line)}
+.task.hit{background:#fffbe3}
+.task.h-on_track .num{background:var(--mint);color:var(--mint-ink)}
+.task.h-watch .num{background:var(--peach);color:var(--peach-ink)}
+.task.h-off_track .num{background:var(--rose);color:var(--rose-ink)}
+.task-main{display:flex;flex-direction:column;gap:6px;min-width:0}
+.task-main .rich{padding:2px 4px;border-radius:6px;line-height:1.5;font-size:15px}
+.task.paused .task-main .rich{color:var(--muted)}
+.task-meta{display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.task-meta select{border:1px solid var(--line);border-radius:99px;padding:1px 8px;background:#fff;font-size:12px;color:var(--muted)}
+.task-meta .x{font-size:12px}
+.task:hover .x{opacity:1}
+.trackbox{border:1px solid var(--line);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:7px;background:#fafafe;font-size:12.5px;min-width:0}
+.trackbox.h-on_track{background:#f2fbf6;border-color:#cfeedd}
+.trackbox.h-watch{background:#fff7f2;border-color:#f6d7c5}
+.trackbox.h-off_track{background:#fdf2f6;border-color:#f2c9d8}
+.tb-head{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.tb-method{border:1px solid var(--line);border-radius:99px;padding:2px 8px;background:#fff;font-size:12px;max-width:150px}
+.trackbox .rich{background:#fff;border:1px solid var(--line);border-radius:8px;padding:5px 8px;font-size:12.5px;min-height:2em;line-height:1.45}
+.tb-foot{display:flex;align-items:center;gap:6px;flex-wrap:wrap;color:var(--muted);font-size:12px}
+.tb-date{border:1px solid var(--line);border-radius:8px;padding:2px 5px;background:#fff;font-family:var(--f-mono);font-size:11.5px}
+.tb-foot.stale .tb-date{color:var(--peach-ink);border-color:#f6c9b4}
+.add-duty.in-box{border:0;border-top:1px solid var(--line);border-radius:0}
+@media (max-width:900px){
+  .tasks-head{display:none}
+  .task{grid-template-columns:26px minmax(0,1fr)}
+  .trackbox{grid-column:2}
+}
 .dfilters .fsep{width:1px;height:18px;background:var(--line);margin:0 2px}
 .chip[aria-pressed="true"]{background:var(--lav);color:var(--lav-ink);border-color:var(--lav-2)}
 .tt-wrap{border:1px solid var(--line);border-radius:16px;overflow-x:auto;background:#fff}
@@ -657,39 +689,38 @@ function dutiesHTML(p){
   const rows=all.filter(match);
   const chip=(k,label)=>`<button class="chip" data-act="dfilter" data-f="${k}" aria-pressed="${f===k}">${label}</button>`;
   let h=`<section class="duties">
-    <div class="dsum"><span class="tag t-open">${live.length} responsibilit${live.length===1?"y":"ies"}</span>${["on_track","watch","off_track","unset"].filter(k=>cnt(k)).map(k=>`<button class="tag ${k==="on_track"?"t-agreed":k==="watch"?"t-paused":k==="off_track"?"t-note":"t-open"}" data-act="dfilter" data-f="${k}" style="cursor:pointer">${cnt(k)} ${SHORT_HEALTH[k].toLowerCase()}</button>`).join("")}</div>
-    <div class="dfilters">${chip("all","All")}${chip("watch","Needs attention")}${chip("off_track","Off track")}${chip("unset","Not checked")}<span class="fsep"></span>${Object.entries(FREQ).map(([k,v])=>chip(k,v.split(" /")[0])).join("")}${retired.length?chip("retired",`Retired (${retired.length})`):""}</div>`;
-  if (!all.length){
-    h+=`<div class="welcome"><h1>No responsibilities yet</h1><p>Add ${first}'s first one below.</p></div>`;
-  } else {
-    h+=`<div class="tt-wrap"><table class="tt"><thead><tr><th>Responsibility</th><th>How often</th><th>Method</th><th>Status</th><th>Last checked</th></tr></thead><tbody>`;
-    h+= rows.map(d=>{
-      const {title,steps}=dutyTitle(d.text), open=openDuty===d.id, hl=d.health||"unset", ck=checkedCell(d);
-      const hit=isHit(d.text,d.id)||isHit(d.track,d.id);
-      let r=`<tr class="tr h-${hl} ${open?"open":""} ${hit?"hit":""} ${d.status==="paused"?"paused":""}">
-        <td class="c-title"><button class="tt-toggle" data-act="dopen" data-id="${d.id}" aria-expanded="${open}"><span class="caret">▸</span><span class="tt-name">${esc(title)}</span>${steps?`<span class="hint">${steps} step${steps===1?"":"s"}</span>`:""}${d.status==="paused"?`<span class="tag t-paused">Paused</span>`:""}</button></td>
-        <td><select class="tt-sel" data-act="dfreq" data-id="${d.id}" aria-label="How often">${Object.entries(FREQ).map(([k,v])=>`<option value="${k}" ${(d.freq||"ongoing")===k?"selected":""}>${v.split(" /")[0]}</option>`).join("")}</select></td>
-        <td><select class="tt-sel" data-act="dmethod" data-id="${d.id}" aria-label="Tracking method">${Object.entries(METHODS).map(([k,v])=>`<option value="${k}" ${(d.method||"")===k?"selected":""}>${k===""?"Choose…":v.replace(" (Bamboo, HubSpot, Aircall)","")}</option>`).join("")}</select></td>
-        <td><select class="tt-sel health h-${hl}" data-act="dhealth" data-id="${d.id}" aria-label="Status">${Object.entries(SHORT_HEALTH).map(([k,v])=>`<option value="${k}" ${hl===k?"selected":""}>${v}</option>`).join("")}</select></td>
-        <td class="c-checked ${ck.stale&&d.checked?"stale":""}"><span class="mono" title="${d.checked?esc(fmtDate(d.checked)):"Never checked"}">${ck.txt}</span><button class="chip sm" data-act="dchecknow" data-id="${d.id}" title="Mark as checked today">✓ Today</button></td>
-      </tr>`;
-      if (open) r+=`<tr class="tt-detail"><td colspan="5"><div class="dd-grid">
-          <label>Responsibility</label>${richEl("","d:"+d.id,"dedit",`data-id="${d.id}" aria-label="Responsibility"`,d.text,"Describe the responsibility")}
-          <label>How I track it</label>${richEl("","tr:"+d.id,"dtrack",`data-id="${d.id}" aria-label="How I track it"`,d.track||"","e.g. Check BambooHR every Thursday, monthly employee tracker review")}
-          <label>Details</label><div class="dd-row">
-            <span>Since <input type="date" data-act="dsince" data-id="${d.id}" value="${esc(d.since||"")}" aria-label="Since"></span>
-            <span>Last checked <input type="date" data-act="dchecked" data-id="${d.id}" value="${esc(d.checked||"")}" aria-label="Last checked"></span>
-            <select data-act="dstatus" data-id="${d.id}" aria-label="Active, paused or retired">${Object.entries(DSTAT).map(([k,v])=>`<option value="${k}" ${(d.status||"active")===k?"selected":""}>${v}</option>`).join("")}</select>
-            <button class="btn ghost danger" data-act="ddel" data-id="${d.id}">Remove</button>
-            <button class="btn" data-act="dopen" data-id="${d.id}">Done</button>
-          </div></div></td></tr>`;
-      return r;
-    }).join("") || `<tr><td colspan="5" class="empty" style="padding:14px">Nothing matches this filter.</td></tr>`;
-    h+=`</tbody></table></div>`;
-  }
-  h+=`<form class="add-duty" data-addduty><div class="field rich" contenteditable="true" role="textbox" aria-multiline="true" aria-label="New responsibility" data-k="addduty" data-ph="Add a responsibility. Use the bar for bold, italic or a numbered list"></div>
+    <div class="dsum"><span class="tag t-open">${live.length} task${live.length===1?"":"s"}</span>${["on_track","watch","off_track","unset"].filter(k=>cnt(k)).map(k=>`<button class="tag ${k==="on_track"?"t-agreed":k==="watch"?"t-paused":k==="off_track"?"t-note":"t-open"}" data-act="dfilter" data-f="${k}" style="cursor:pointer">${cnt(k)} ${SHORT_HEALTH[k].toLowerCase()}</button>`).join("")}
+      ${f!=="all"?`<button class="chip sm" data-act="dfilter" data-f="all">Show all</button>`:""}${retired.length&&f!=="retired"?`<button class="chip sm" data-act="dfilter" data-f="retired">Retired (${retired.length})</button>`:""}</div>
+    <div class="tasks">
+      <div class="tasks-head"><span>Task</span><span>How I'm tracking it</span></div>`;
+  h += rows.map((d,i)=>{
+    const hl=d.health||"unset", ck=checkedCell(d);
+    return `<div class="task h-${hl} ${d.status==="paused"?"paused":""} ${isHit(d.text,d.id)||isHit(d.track,d.id)?"hit":""}">
+      <span class="num">${i+1}</span>
+      <div class="task-main">
+        ${richEl("","d:"+d.id,"dedit",`data-id="${d.id}" aria-label="Task"`,d.text,"Describe the task")}
+        <div class="task-meta">
+          <select data-act="dfreq" data-id="${d.id}" aria-label="How often">${Object.entries(FREQ).map(([k,v])=>`<option value="${k}" ${(d.freq||"ongoing")===k?"selected":""}>${v.split(" /")[0]}</option>`).join("")}</select>
+          <select data-act="dstatus" data-id="${d.id}" aria-label="Active, paused or retired">${Object.entries(DSTAT).map(([k,v])=>`<option value="${k}" ${(d.status||"active")===k?"selected":""}>${v}</option>`).join("")}</select>
+          <button class="x" data-act="ddel" data-id="${d.id}" aria-label="Remove task">✕ Remove</button>
+        </div>
+      </div>
+      <div class="trackbox h-${hl}">
+        <div class="tb-head">
+          <select class="tt-sel health h-${hl}" data-act="dhealth" data-id="${d.id}" aria-label="Status">${Object.entries(SHORT_HEALTH).map(([k,v])=>`<option value="${k}" ${hl===k?"selected":""}>${v}</option>`).join("")}</select>
+          <select class="tb-method" data-act="dmethod" data-id="${d.id}" aria-label="Tracking method">${Object.entries(METHODS).map(([k,v])=>`<option value="${k}" ${(d.method||"")===k?"selected":""}>${k===""?"Method…":v.replace(" (Bamboo, HubSpot, Aircall)","")}</option>`).join("")}</select>
+        </div>
+        ${richEl("tb-note","tr:"+d.id,"dtrack",`data-id="${d.id}" aria-label="How I track it"`,d.track||"","How I check it, e.g. BambooHR every Thursday")}
+        <div class="tb-foot ${ck.stale&&d.checked?"stale":""}">
+          <span>Checked</span><input type="date" class="tb-date" data-act="dchecked" data-id="${d.id}" value="${esc(d.checked||"")}" aria-label="Last checked">
+          <button class="chip sm" data-act="dchecknow" data-id="${d.id}" title="Mark as checked today">✓ Today</button>
+        </div>
+      </div>
+    </div>`;
+  }).join("") || `<div class="task"><span></span><div class="empty">${all.length?"Nothing matches this filter.":`No tasks yet. Add ${first}'s first one below.`}</div></div>`;
+  h+=`<form class="add-duty in-box" data-addduty><div class="field rich" contenteditable="true" role="textbox" aria-multiline="true" aria-label="New task" data-k="addduty" data-ph="Add a task. Use the bar for bold, italic or a numbered list"></div>
     <select id="newFreq" aria-label="How often">${Object.entries(FREQ).map(([k,v])=>`<option value="${k}" ${k==="ongoing"?"selected":""}>${v}</option>`).join("")}</select>
-    <button class="btn primary" type="submit">Add</button></form>`;
+    <button class="btn primary" type="submit">Add</button></form></div>`;
   return h+`</section>`;
 }
 const sortedTeam = () => Object.keys(team).sort((a,b)=>(team[a].name||"").localeCompare(team[b].name||""));
