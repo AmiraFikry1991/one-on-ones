@@ -37,6 +37,15 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .logo img{height:36px;width:auto;max-width:180px;object-fit:contain}
 .divider{width:1px;height:26px;background:var(--line)}
 .appname{font-weight:600;color:var(--muted);white-space:nowrap}
+.areas{display:flex;gap:2px;background:var(--wash);border:1px solid var(--line);border-radius:99px;padding:3px;flex:none}
+.area{border:0;background:none;border-radius:99px;padding:5px 14px;font-weight:600;font-size:14px;color:var(--muted);white-space:nowrap}
+.area:hover{color:var(--ink)}
+.area[aria-pressed="true"]{background:#fff;color:var(--ink);box-shadow:0 1px 4px rgba(60,40,110,.14)}
+.railsec{display:flex;flex-direction:column;gap:16px}
+.team-head{display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px 20px;padding-bottom:4px;border-bottom:1px solid var(--line)}
+.team-head h1{font-family:var(--f-display);font-weight:400;font-size:clamp(26px,4vw,34px);line-height:1.1;margin:0}
+.team-head .role{color:var(--muted);margin-top:4px}
+.team-head .actions{margin-left:auto}
 .search{position:relative;margin-left:auto;width:min(420px,100%);min-width:0}
 .search input{width:100%;border:1px solid var(--line);background:var(--wash);border-radius:99px;padding:9px 14px 9px 36px}
 .search input:focus{outline:none;border-color:var(--lav-2);background:#fff;box-shadow:0 0 0 4px var(--lav)}
@@ -270,6 +279,7 @@ body.locked .top, body.locked .app{display:none}
   .status{margin-top:0}
   main{padding-inline:max(16px, env(safe-area-inset-left,0px)) max(16px, env(safe-area-inset-right,0px))}
   .top-in{flex-wrap:wrap}.search{width:100%;margin-left:0;order:3}.divider,.appname{display:none}
+  .railsec{gap:10px}.railsec .addp{flex-direction:row;flex-wrap:wrap}.railsec .addp .field{flex:1 1 140px}
   .topic{grid-template-columns:26px minmax(0,1fr);gap:4px 8px;padding:12px}.num{width:24px;height:24px}
   .act{grid-template-columns:auto 18px minmax(0,1fr) auto}
   .act .due{grid-column:3;width:auto;justify-self:start}
@@ -284,7 +294,8 @@ body.locked .top, body.locked .app{display:none}
 
 <header class="top"><div class="top-in">
   <div class="logo"><img src="assets/logo.png" alt="Day 1 Egypt"></div>
-  <span class="divider"></span><span class="appname">1:1 Notebook</span>
+  <span class="divider"></span>
+  <nav class="areas" aria-label="Sections"><button class="area" data-area="ones" aria-pressed="true">1:1s</button><button class="area" data-area="team" aria-pressed="false">My team</button></nav>
   <div class="search">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
     <input id="q" type="search" placeholder="Search all 1:1s, e.g. onboarding, leave, bonus" autocomplete="off" aria-label="Search all 1:1s">
@@ -295,6 +306,7 @@ body.locked .top, body.locked .app{display:none}
 
 <div class="app">
   <aside class="rail">
+   <div class="railsec" id="railOnes">
     <div class="label">1:1s with</div>
     <div class="people" id="people"></div>
     <form class="addp" id="addPerson">
@@ -302,6 +314,16 @@ body.locked .top, body.locked .app{display:none}
       <input class="field" id="newRole" placeholder="Role (optional)" autocomplete="off">
       <button class="btn" type="submit">Add person</button>
     </form>
+   </div>
+   <div class="railsec" id="railTeam" hidden>
+    <div class="label">My team</div>
+    <div class="people" id="teamList"></div>
+    <form class="addp" id="addMember">
+      <input class="field" id="memName" placeholder="Name, e.g. Mariyam" autocomplete="off">
+      <input class="field" id="memRole" placeholder="Role (optional)" autocomplete="off">
+      <button class="btn" type="submit">Add team member</button>
+    </form>
+   </div>
     <div class="status" id="status">Connecting…</div>
   </aside>
   <main><div class="wrap" id="main"></div></main>
@@ -363,7 +385,7 @@ const fmtShort = iso => iso ? new Date(iso+"T12:00:00").toLocaleDateString(undef
 const fmtMonth = iso => new Date(iso+"T12:00:00").toLocaleDateString(undefined,{month:"long",year:"numeric"});
 const initials = n => n.trim().split(/\s+/).map(w=>w[0]).slice(0,2).join("").toUpperCase();
 const KIND = {agreed:"Agreed", note:"Note"};
-const FREQ = {daily:"Daily", weekly:"Weekly", monthly:"Monthly", ongoing:"Ongoing / as needed"};
+const FREQ = {daily:"Daily", weekly:"Weekly", monthly:"Monthly", quarterly:"Quarterly", ongoing:"Ongoing / as needed"};
 const DSTAT = {active:"Active", paused:"Paused", retired:"Retired"};
 const HEALTH = {unset:"Not checked yet", on_track:"On track", watch:"Needs attention", off_track:"Off track"};
 const WELCOME = `<img class="banner" src="${BANNER}" alt=""><div class="welcome"><h1>Your weekly 1:1s, in one place</h1>
@@ -371,7 +393,7 @@ const WELCOME = `<img class="banner" src="${BANNER}" alt=""><div class="welcome"
   <ol><li>Agreed: a decision you both signed off on</li><li>Note: context or an update</li><li>Action: who does what, by when</li><li>Park: push it to the next 1:1</li></ol></div>`;
 
 let db = null;
-const people = {}, meetings = {}, settings = {};
+const people = {}, meetings = {}, team = {}, settings = {};
 const dirty = new Set(), ver = {}, inflight = {}, timers = {};
 let sel = { person:null, meeting:null }, hitTerm = "", hitId = null, adding = null, confirmDel = null, recapOpen = false;
 try { const s = JSON.parse(localStorage.getItem("oo-sel")||"null"); if (s) sel = s; } catch(e){}
@@ -409,7 +431,7 @@ const STATUS_TAG = {parked:"t-parked",agreed:"t-agreed",discussed:"t-note",actio
 
 /* ---------- persistence (Supabase) ---------- */
 const key = (kind,id) => kind+"/"+id;
-const getLocal = (kind,id) => kind==="people" ? people[id] : meetings[id];
+const getLocal = (kind,id) => kind==="people" ? people[id] : kind==="team" ? team[id] : meetings[id];
 function schedule(kind,id,delay=500){
   const k=key(kind,id); ver[k]=(ver[k]||0)+1; dirty.add(k); setStatus("Saving…");
   clearTimeout(timers[k]); timers[k]=setTimeout(()=>flush(kind,id),delay);
@@ -425,7 +447,7 @@ async function flush(kind,id){
   if (ver[k]===v){ dirty.delete(k); if(!dirty.size) setStatus("All changes saved"); }
 }
 async function remove(kind,id){
-  if (kind==="people") delete people[id]; else delete meetings[id];
+  if (kind==="people") delete people[id]; else if (kind==="team") delete team[id]; else delete meetings[id];
   const { error } = await sb.from("docs").delete().eq("id", key(kind,id));
   if (error) setStatus("Couldn't delete. Try again.");
 }
@@ -434,16 +456,19 @@ async function loadAll(){
   if (error){ setStatus("Couldn't load your notes. Check your connection and reload."); return; }
   for (const k of Object.keys(people)) if(!dirty.has("people/"+k)) delete people[k];
   for (const k of Object.keys(meetings)) if(!dirty.has("meetings/"+k)) delete meetings[k];
+  for (const k of Object.keys(team)) if(!dirty.has("team/"+k)) delete team[k];
   for (const row of data){
     const id=row.id.slice(row.id.indexOf("/")+1);
     if (dirty.has(row.id)) continue;
     if (row.kind==="people") people[id]=row.data;
     else if (row.kind==="meetings") meetings[id]=normalize(row.data);
+    else if (row.kind==="team") team[id]=row.data;
   }
   if (!sel.person || !people[sel.person]){ const first=Object.keys(people)[0]; sel.person=first||null; sel.meeting=null; }
+  if (!sel.member || !team[sel.member]) sel.member = sortedTeam()[0] || null;
   setStatus("All changes saved");
   const ae=document.activeElement;
-  if (ae && ae.matches && ae.matches(".rich, textarea, input.txt, .inline-add input, .add-topic input, #q, .addp input")){ renderPeople(); return; }
+  if (ae && ae.matches && ae.matches(".rich, textarea, input.txt, .inline-add input, .add-topic input, #q, .addp input, .dtrack input, .add-duty input")){ if(sel.area==="team") renderTeamList(); else renderPeople(); return; }
   render();
 }
 
@@ -463,7 +488,10 @@ const agreedCount = m => containers(m).reduce((n,c)=>n+c.outcomes.filter(o=>o.ki
 /* ---------- render ---------- */
 function render(){
   const ae=document.activeElement, focus = ae && ae.dataset ? ae.dataset.k : null, pos = focus ? ae.selectionStart : null;
-  renderMain(); renderPeople();
+  const inTeam = sel.area==="team";
+  document.querySelectorAll("[data-area]").forEach(b=>b.setAttribute("aria-pressed", b.dataset.area===(inTeam?"team":"ones")));
+  $("#railOnes").hidden = inTeam; $("#railTeam").hidden = !inTeam;
+  if (inTeam){ renderTeamMain(); renderTeamList(); } else { renderMain(); renderPeople(); }
   const want = adding ? `add:${adding.tid}` : focus;
   if (want){ const el=document.querySelector(`[data-k="${CSS.escape(want)}"]`); if(el){ el.focus(); if(el.isContentEditable){ const r=document.createRange(); r.selectNodeContents(el); r.collapse(false); const s=getSelection(); s.removeAllRanges(); s.addRange(r); } else { try{ if(!adding && pos!=null) el.setSelectionRange(pos,pos);}catch(e){} } } }
 }
@@ -511,7 +539,6 @@ function bodyHTML(tid,c,p,showPark){
   let h = c.outcomes.map(o=>`<div class="line ${isHit(o.text,o.id)?"hit":""}">
       <button class="tag t-${o.kind}" data-act="okind" data-tid="${tid}" data-id="${o.id}" title="Switch between Agreed and Note">${KIND[o.kind]}</button>
       ${richEl("txt","o:"+o.id,"oedit",`data-tid="${tid}" data-id="${o.id}"`,o.text,"Write it here")}
-      ${o.kind==="agreed"?(o.duty&&dutyById(p,o.duty)?`<button class="mkduty on" data-act="gotoDuty" data-id="${o.duty}" title="Open in Responsibilities">✓ Responsibility</button>`:`<button class="mkduty" data-act="mkduty" data-tid="${tid}" data-id="${o.id}" title="Save this as an ongoing responsibility for ${esc(p.name.split(" ")[0])}">+ Responsibility</button>`):""}
       <button class="x" data-act="odel" data-tid="${tid}" data-id="${o.id}" aria-label="Remove">✕</button></div>`).join("");
   h += c.actions.map(a=>actionRow(sel.meeting,a,p)).join("");
   if (adding && adding.tid===tid){
@@ -527,7 +554,9 @@ function bodyHTML(tid,c,p,showPark){
   </div>`;
   return h;
 }
-const dutyById = (p,id) => (p.duties||[]).find(d=>d.id===id);
+const dutyById = (p,id) => ((p&&p.duties)||[]).find(d=>d.id===id);
+const DO = () => team[sel.member];
+const saveDO = (delay=500) => schedule("team", sel.member, delay);
 function dutyRow(d,p){
   const src = d.src && meetings[d.src] ? `<button class="dsrc" data-act="gotoSrc" data-mid="${d.src}">Agreed in 1:1 on ${esc(fmtDate(meetings[d.src].date))}</button>` : "";
   const hl=d.health||"unset";
@@ -555,7 +584,7 @@ function dutiesHTML(p){
   const all=p.duties||[], first=esc(p.name.split(" ")[0]);
   const live=all.filter(d=>d.status!=="retired"), retired=all.filter(d=>d.status==="retired");
   const cnt=k=>live.filter(d=>(d.health||"unset")===k).length;
-  let h=`<section class="duties"><p class="duty-intro">${first}'s standing, day-to-day duties and how you're tracking each one. Add them here, or press <b>+ Responsibility</b> on anything marked Agreed in a 1:1.</p>`;
+  let h=`<section class="duties"><p class="duty-intro">${first}'s day-to-day responsibilities and how you're tracking each one.</p>`;
   if (live.length) h+=`<div class="dsum">${["on_track","watch","off_track","unset"].filter(k=>cnt(k)).map(k=>`<span class="tag ${k==="on_track"?"t-agreed":k==="watch"?"t-paused":k==="off_track"?"t-note":"t-open"}">${cnt(k)} ${HEALTH[k].toLowerCase()}</span>`).join("")}</div>`;
   for (const [k,label] of Object.entries(FREQ)){
     const items=live.filter(d=>(d.freq||"ongoing")===k); if(!items.length) continue;
@@ -568,6 +597,26 @@ function dutiesHTML(p){
   if (retired.length) h+=`<details class="retired"><summary>Retired (${retired.length})</summary><div class="dlist">${retired.map(d=>dutyRow(d,p)).join("")}</div></details>`;
   return h+`</section>`;
 }
+const sortedTeam = () => Object.keys(team).sort((a,b)=>(team[a].name||"").localeCompare(team[b].name||""));
+function renderTeamList(){
+  const ids=sortedTeam();
+  $("#teamList").innerHTML = ids.length ? ids.map(id=>{
+    const p=team[id], live=(p.duties||[]).filter(d=>d.status!=="retired"), flag=live.filter(d=>d.health==="watch"||d.health==="off_track").length;
+    return `<button class="person" data-member="${id}" aria-current="${sel.member===id}">
+      <span class="avatar">${esc(initials(p.name||"?"))}</span>
+      <span class="meta"><span class="nm">${esc(p.name)}</span><span class="sub">${esc(p.role||"")}${p.role?" · ":""}${live.length} responsibilit${live.length===1?"y":"ies"}</span></span>
+      ${flag?`<span class="badge" title="Need attention or off track">${flag}</span>`:""}</button>`;
+  }).join("") : `<div class="empty">No team members yet.</div>`;
+}
+function renderTeamMain(){
+  const main=$("#main");
+  if (!team[sel.member]) sel.member = sortedTeam()[0] || null;
+  const p=team[sel.member];
+  if (!p){ main.innerHTML=`<div class="welcome"><h1>My team</h1><p>Add each of your direct reports on the left. For each person you can keep their day-to-day responsibilities, how often each one happens, how you track it, and whether it's on track.</p></div>`; return; }
+  main.innerHTML = `<div class="team-head"><div><h1>${esc(p.name)}</h1><div class="role">${esc(p.role||"Team member")}</div></div>
+    <div class="actions"><button class="btn ghost danger" data-act="delMember">${confirmDel==="tm:"+sel.member?"Click again to remove "+esc((p.name||"").split(" ")[0]):"Remove from team"}</button></div></div>`
+    + dutiesHTML(p);
+}
 function renderMain(){
   const main=$("#main"), p=people[sel.person];
   if (!p){ main.innerHTML = Object.keys(people).length ? `<img class="banner" src="${BANNER}" alt=""><div class="welcome"><h1>Pick someone</h1><p>Choose a person on the left to see their 1:1s.</p></div>` : WELCOME; return; }
@@ -578,12 +627,7 @@ function renderMain(){
     <div class="head"><div><h1>${esc(p.name)}</h1><div class="role">${esc(p.role||"Weekly 1:1")}</div></div>
     <div class="actions"><button class="btn primary" data-act="newMeeting">Start this week's 1:1</button><button class="btn" data-act="missedWeek">Log a missed week</button>
     <button class="btn ghost danger" data-act="delPerson">${confirmDel==="p:"+sel.person?"Click again to remove "+esc(p.name.split(" ")[0]):"Remove person"}</button></div></div>
-    <div class="tabs" role="tablist">
-      <button class="tab" role="tab" data-act="tab" data-tab="ones" aria-selected="${sel.tab!=="duties"}">1:1s</button>
-      <button class="tab" role="tab" data-act="tab" data-tab="duties" aria-selected="${sel.tab==="duties"}">Responsibilities<span class="count">${(p.duties||[]).filter(d=>d.status!=="retired").length}</span></button>
-    </div>`;
-  if (sel.tab==="duties"){ main.innerHTML = html + dutiesHTML(p); return; }
-  html += `
+
     <section class="queue"><h2>For next 1:1 <span class="hint">Jot topics during the week. They become the agenda when you start the next 1:1.</span></h2>
       <ul class="qlist">${queue.map(q=>`<li class="qitem ${isHit(q.text,q.id)?"hit":""}">${richEl("","q:"+q.id,"qedit",`data-id="${q.id}"`,q.text,"Topic")}<button class="x" data-act="qdel" data-id="${q.id}" aria-label="Remove">✕</button></li>`).join("") || `<li class="empty">Nothing queued yet.</li>`}</ul>
       <form class="inline-add" data-addq><input class="field" data-k="addq" placeholder="Add a topic for next time" autocomplete="off"><button class="btn" type="submit">Add</button></form></section>`;
@@ -653,14 +697,17 @@ function runSearch(){
   for (const [pid,p] of Object.entries(people)){
     if (has(p.name)) hits.push({pid,mid:null,date:"",tag:"person",id:null,text:p.name});
     (p.queue||[]).forEach(q=>{ if(has(q.text)) hits.push({pid,mid:null,date:"",tag:"queue",id:q.id,text:q.text}); });
-    (p.duties||[]).forEach(d=>{ if(has(d.text)||has(d.track)) hits.push({pid,mid:null,date:d.since||"",tag:"duty",id:d.id,text:d.text,tab:"duties"}); });
+  }
+  for (const [tid2,tm] of Object.entries(team)){
+    if (has(tm.name)) hits.push({pid:tid2,mid:null,date:"",tag:"person",id:null,text:tm.name,area:"team",who:tm.name});
+    (tm.duties||[]).forEach(d=>{ if(has(d.text)||has(d.track)) hits.push({pid:tid2,mid:null,date:"",tag:"duty",id:d.id,text:d.text,area:"team",who:tm.name}); });
   }
   hits.sort((a,b)=>(b.date||"9999").localeCompare(a.date||"9999"));
   const TAGS={agenda:"Agenda",agreed:"Agreed",note:"Note",action:"Action",queue:"For next 1:1",duty:"Responsibility"};
   box.hidden=false;
   box.innerHTML = hits.length
-    ? `<div class="res-head">${hits.length} match${hits.length===1?"":"es"} across all 1:1s</div>`+hits.slice(0,60).map(h=>`<button class="res" data-hit='${esc(JSON.stringify({pid:h.pid,mid:h.mid,id:h.id,tab:h.tab||"ones"}))}'>
-        <div class="r1"><span class="who">${esc(people[h.pid].name)}</span>${h.date?`<span class="when">${esc(fmtDate(h.date))}</span>`:""}${TAGS[h.tag]?`<span class="tag t-${h.tag}">${TAGS[h.tag]}</span>`:""}</div>
+    ? `<div class="res-head">${hits.length} match${hits.length===1?"":"es"} across all 1:1s</div>`+hits.slice(0,60).map(h=>`<button class="res" data-hit='${esc(JSON.stringify({pid:h.pid,mid:h.mid,id:h.id,area:h.area||"ones"}))}'>
+        <div class="r1"><span class="who">${esc(h.who||(people[h.pid]||{}).name||"")}</span>${h.date?`<span class="when">${esc(fmtDate(h.date))}</span>`:""}${TAGS[h.tag]?`<span class="tag t-${h.tag}">${TAGS[h.tag]}</span>`:""}</div>
         <div class="snip">${snippet(h.text,term)}</div>${h.ctx?`<div class="hint" style="margin-top:2px">Under: ${esc(oneLine(h.ctx).slice(0,80))}</div>`:""}</button>`).join("")
     : `<div class="res-head">No matches for "${esc(term)}".</div>`;
 }
@@ -677,34 +724,32 @@ function addToQueue(text){ const p=people[sel.person]; p.queue ||= []; if(!p.que
 
 document.addEventListener("click", async e=>{
   const hb=e.target.closest("[data-hit]");
-  if (hb){ const h=JSON.parse(hb.dataset.hit); sel.person=h.pid; sel.meeting=h.mid; sel.tab=h.tab; hitTerm=$("#q").value.trim().toLowerCase(); hitId=h.id; adding=null;
+  if (hb){ const h=JSON.parse(hb.dataset.hit); if (h.area==="team"){ sel.area="team"; sel.member=h.pid; } else { sel.area="ones"; sel.person=h.pid; sel.meeting=h.mid; } hitTerm=$("#q").value.trim().toLowerCase(); hitId=h.id; adding=null;
     $("#results").hidden=true; confirmDel=null; recapOpen=false; remember(); render();
     const el=document.querySelector(".hit"); if(el) el.scrollIntoView({block:"center",behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"}); return; }
+  const ab=e.target.closest("[data-area]"); if(ab){ sel.area=ab.dataset.area; confirmDel=null; adding=null; clearHit(); remember(); render(); return; }
+  const tb=e.target.closest("[data-member]"); if(tb){ sel.member=tb.dataset.member; confirmDel=null; clearHit(); remember(); render(); return; }
   const pb=e.target.closest("[data-person]"); if(pb){ sel.person=pb.dataset.person; sel.meeting=null; sel.tab="ones"; confirmDel=null; recapOpen=false; adding=null; clearHit(); remember(); render(); return; }
   const mb=e.target.closest("[data-meeting]"); if(mb){ sel.meeting=mb.dataset.meeting; sel.tab="ones"; confirmDel=null; recapOpen=false; adding=null; clearHit(); remember(); render(); if(innerWidth<=760) $("#main").scrollIntoView({block:"start"}); return; }
   const b=e.target.closest("[data-act]"); if(!b) return;
   const act=b.dataset.act, id=b.dataset.id, tid=b.dataset.tid, mid=b.dataset.mid;
-  if (act!=="delPerson" && act!=="delMeeting" && act!=="ddel") confirmDel=null;
+  if (act!=="delPerson" && act!=="delMeeting" && act!=="ddel" && act!=="delMember") confirmDel=null;
   if (act==="startAdd"){ adding={tid,kind:b.dataset.kind}; render(); }
   else if (act==="cancelAdd"){ adding=null; render(); }
   else if (act==="okind"){ const o=getCont(M(),tid).outcomes.find(x=>x.id===id); o.kind=o.kind==="agreed"?"note":"agreed"; saveM(); render(); }
   else if (act==="odel"){ const c=getCont(M(),tid); c.outcomes=c.outcomes.filter(x=>x.id!==id); saveM(); render(); }
   else if (act==="tdel"){ M().topics=M().topics.filter(t=>t.id!==id); saveM(); render(); }
   else if (act==="park"){ const t=getCont(M(),tid); t.parked=!t.parked; if(t.parked){ addToQueue(t.text); toast("Added to next 1:1"); } saveM(); render(); }
-  else if (act==="tab"){ sel.tab=b.dataset.tab; adding=null; clearHit(); remember(); render(); }
-  else if (act==="mkduty"){
-    const p=people[sel.person], m=M(), o=getCont(m,tid).outcomes.find(x=>x.id===id);
-    p.duties ||= []; const d={id:uid(),text:o.text,freq:"ongoing",status:"active",since:m.date,src:sel.meeting};
-    p.duties.push(d); o.duty=d.id; schedule("people",sel.person); saveM(); render();
-    toast(`Added to ${p.name.split(" ")[0]}'s responsibilities`);
-  }
-  else if (act==="gotoDuty"){ sel.tab="duties"; hitId=id; hitTerm=""; remember(); render(); document.querySelector(".duty.hit")?.scrollIntoView({block:"center"}); }
-  else if (act==="dchecknow"){ const d=dutyById(people[sel.person],id); d.checked=todayISO(); schedule("people",sel.person); render(); toast("Marked as checked today"); }
-  else if (act==="gotoSrc"){ sel.tab="ones"; sel.meeting=mid; clearHit(); remember(); render(); }
+  else if (act==="dchecknow"){ const d=dutyById(DO(),id); d.checked=todayISO(); saveDO(); render(); toast("Marked as checked today"); }
+  else if (act==="gotoSrc"){ sel.area="ones"; sel.meeting=mid; clearHit(); remember(); render(); }
   else if (act==="ddel"){
-    const p=people[sel.person];
+    const p=DO();
     if (confirmDel!=="d:"+id){ confirmDel="d:"+id; toast("Click ✕ again to remove it, or set it to Retired to keep a record"); return; }
-    confirmDel=null; p.duties=(p.duties||[]).filter(d=>d.id!==id); schedule("people",sel.person); render();
+    confirmDel=null; p.duties=(p.duties||[]).filter(d=>d.id!==id); saveDO(); render();
+  }
+  else if (act==="delMember"){
+    if (confirmDel!=="tm:"+sel.member){ confirmDel="tm:"+sel.member; render(); return; }
+    confirmDel=null; const id2=sel.member; sel.member=null; await remove("team",id2); remember(); render(); toast("Removed from team");
   }
   else if (act==="qdel"){ const p=people[sel.person]; p.queue=(p.queue||[]).filter(q=>q.id!==id); schedule("people",sel.person); render(); }
   else if (act==="aowner"){ const f=findAction(mid,id); f.a.owner = f.a.owner==="me"?"them":f.a.owner==="them"?"both":"me"; saveM(mid); render(); }
@@ -748,19 +793,19 @@ document.addEventListener("change", e=>{
   else if (act==="mdate" && t.value){ M().date=t.value; saveM(); render(); }
   else if (act==="mstatus"){ M().status=t.value; saveM(); render(); }
   else if (act==="dfreq"||act==="dstatus"||act==="dsince"||act==="dhealth"||act==="dchecked"){
-    const d=dutyById(people[sel.person],t.dataset.id); if(!d) return;
+    const d=dutyById(DO(),t.dataset.id); if(!d) return;
     if (act==="dfreq") d.freq=t.value; else if (act==="dstatus") d.status=t.value; else if (act==="dsince") d.since=t.value;
     else if (act==="dhealth"){ d.health=t.value; if(t.value!=="unset" && !d.checked) d.checked=todayISO(); }
     else d.checked=t.value;
-    schedule("people",sel.person); render();
+    saveDO(); render();
   }
 });
 document.addEventListener("input", e=>{
   const t=e.target, act=t.dataset.act; if(!act) return;
   if (act==="tedit"){ const x=M().topics.find(y=>y.id===t.dataset.id); if(x){ x.text=clean(t.innerHTML); saveM(); } }
   else if (act==="oedit"){ const o=getCont(M(),t.dataset.tid).outcomes.find(y=>y.id===t.dataset.id); if(o){ o.text=clean(t.innerHTML); saveM(); } }
-  else if (act==="dtrack"){ const d=dutyById(people[sel.person],t.dataset.id); if(d){ d.track=t.value; schedule("people",sel.person,700); } }
-  else if (act==="dedit"){ const d=dutyById(people[sel.person],t.dataset.id); if(d){ d.text=clean(t.innerHTML); schedule("people",sel.person); } }
+  else if (act==="dtrack"){ const d=dutyById(DO(),t.dataset.id); if(d){ d.track=t.value; saveDO(700); } }
+  else if (act==="dedit"){ const d=dutyById(DO(),t.dataset.id); if(d){ d.text=clean(t.innerHTML); saveDO(); } }
   else if (act==="qedit"){ const q=(people[sel.person].queue||[]).find(y=>y.id===t.dataset.id); if(q){ q.text=clean(t.innerHTML); schedule("people",sel.person); } }
   else if (act==="reason"){ M().reason=t.value; saveM(); }
   else if (act==="aedit"){ const f=findAction(t.dataset.mid,t.dataset.id); if(f){ f.a.text=t.value; schedule("meetings",t.dataset.mid,700); } }
@@ -770,14 +815,14 @@ document.addEventListener("keydown", e=>{
   if (e.key==="Escape" && adding && e.target.closest(".inline-add")){ adding=null; render(); }
 });
 document.addEventListener("submit", e=>{
-  const form=e.target; if (form.id==="addPerson"||form.id==="lockForm") return;
+  const form=e.target; if (form.id==="addPerson"||form.id==="addMember"||form.id==="lockForm") return;
   e.preventDefault();
   const input=form.querySelector("input.field"), raw=input ? input.value.trim() : ""; if(!raw) return;
   const text = form.dataset.addto && adding && adding.kind==="action" ? raw : esc(raw);
   if (form.hasAttribute("data-addduty")){
-    const p=people[sel.person]; p.duties ||= [];
+    const p=DO(); p.duties ||= [];
     p.duties.push({id:uid(),text,freq:$("#newFreq").value,status:"active",since:todayISO(),src:null});
-    schedule("people",sel.person); input.value=""; render(); document.querySelector('[data-k="addduty"]')?.focus(); return;
+    saveDO(); input.value=""; render(); document.querySelector('[data-k="addduty"]')?.focus(); return;
   }
   if (form.hasAttribute("data-addq")){ addToQueue(text); input.value=""; render(); document.querySelector('[data-k="addq"]')?.focus(); return; }
   if (form.hasAttribute("data-addtopic")){ M().topics.push({id:uid(),text,parked:false,outcomes:[],actions:[]}); saveM(); input.value=""; render(); document.querySelector('[data-k="addtopic"]')?.focus(); return; }
@@ -787,6 +832,13 @@ document.addEventListener("submit", e=>{
     else c.outcomes.push({id:uid(),kind:adding.kind,text});
     saveM(); input.value=""; render();
   }
+});
+$("#addMember").addEventListener("submit", e=>{
+  e.preventDefault(); const name=$("#memName").value.trim(); if(!name) return;
+  const id=uid(); team[id]={name, role:$("#memRole").value.trim(), duties:[], createdAt:Date.now()};
+  schedule("team",id,0); sel.member=id; sel.area="team"; clearHit(); remember();
+  $("#memName").value=""; $("#memRole").value=""; render();
+  document.querySelector('[data-k="addduty"]')?.focus();
 });
 $("#addPerson").addEventListener("submit", e=>{
   e.preventDefault(); const name=$("#newName").value.trim(); if(!name) return;
