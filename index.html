@@ -730,7 +730,7 @@ function renderTeamList(){
     const p=team[id], live=(p.duties||[]).filter(d=>d.status!=="retired"), flag=live.filter(d=>d.health==="watch"||d.health==="off_track").length;
     return `<button class="person" data-member="${id}" aria-current="${sel.member===id}">
       <span class="avatar">${esc(initials(p.name||"?"))}</span>
-      <span class="meta"><span class="nm">${esc(p.name)}</span><span class="sub">${esc(p.role||"")}${p.role?" · ":""}${live.length} responsibilit${live.length===1?"y":"ies"}</span></span>
+      <span class="meta"><span class="nm">${esc(p.name)}</span><span class="sub">${esc(p.role||"")}${p.role?" · ":""}${live.length} task${live.length===1?"":"s"}</span></span>
       ${flag?`<span class="badge" title="Need attention or off track">${flag}</span>`:""}</button>`;
   }).join("") : `<div class="empty">No team members yet.</div>`;
 }
