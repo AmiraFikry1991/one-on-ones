@@ -191,6 +191,25 @@ main{grid-area:main;padding-block:20px 60px;padding-inline:28px;min-width:0}
 .tb-foot{display:flex;align-items:center;gap:6px;flex-wrap:wrap;color:var(--muted);font-size:12px}
 .tb-date{border:1px solid var(--line);border-radius:8px;padding:2px 5px;background:#fff;font-family:var(--f-mono);font-size:11.5px}
 .tb-foot.stale .tb-date{color:var(--peach-ink);border-color:#f6c9b4}
+.tb-latest{background:#fff;border:1px solid var(--line);border-radius:8px;padding:7px 9px;display:flex;flex-direction:column;gap:3px}
+.tb-when{font-family:var(--f-mono);font-size:11.5px;color:var(--muted);display:flex;gap:8px}
+.tb-when span{font-family:var(--f-body);font-weight:600}
+.tb-when.stale{color:var(--peach-ink)}
+.rich-view{font-size:12.5px;line-height:1.45;overflow-wrap:anywhere}
+.rich-view ul,.rich-view ol{margin:2px 0;padding-left:20px}
+.tb-empty{color:var(--muted);font-size:12px;font-style:italic}
+.tb-form{display:flex;flex-direction:column;gap:6px;background:#fff;border:1px solid var(--lav-2);border-radius:10px;padding:8px}
+.tb-form-row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.tb-form select,.tb-form input[type=date]{border:1px solid var(--line);border-radius:8px;padding:3px 6px;background:#fff;font-size:12.5px}
+.tb-form input[type=date]{font-family:var(--f-mono);font-size:11.5px}
+.tb-form .rich{min-height:3em}
+.tb-form .btn{padding:4px 10px;font-size:12.5px}
+.tb-hist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;border-top:1px dashed var(--line);padding-top:7px}
+.tb-hist li{display:flex;flex-direction:column;gap:2px}
+.tb-hist-top{display:flex;align-items:center;gap:6px}
+.tb-hist-top .mono{font-family:var(--f-mono);font-size:11.5px;color:var(--muted)}
+.tb-hist-top .tag{font-size:10px;padding:0 7px}
+.tb-hist li:hover .x{opacity:1}
 .add-duty.in-box{border:0;border-top:1px solid var(--line);border-radius:0}
 @media (max-width:900px){
   .tasks-head{display:none}
@@ -679,6 +698,16 @@ function checkedCell(d){
   const txt = days===0 ? "Today" : days===1 ? "Yesterday" : new Date(d.checked+"T12:00:00").toLocaleDateString(undefined,{day:"numeric",month:"short"});
   return {txt, stale: days > (STALE_DAYS[d.freq||"ongoing"]||30)};
 }
+let logFor=null, histFor=null;
+const HTAG={unset:"t-open",on_track:"t-agreed",watch:"t-paused",off_track:"t-note"};
+const sortedLog = d => [...(d.log||[])].sort((a,b)=>(a.date||"").localeCompare(b.date||"") || (a.at||0)-(b.at||0));
+function syncFromLog(d){ const l=sortedLog(d), last=l[l.length-1]; d.health = last ? (last.health||"unset") : "unset"; d.checked = last ? last.date : ""; }
+function migrateLog(d){
+  if (d.log) return;
+  d.log=[];
+  if (plain(d.track||"") || (d.health && d.health!=="unset")) d.log.push({id:uid(), date:d.checked||todayISO(), health:d.health||"unset", note:d.track||"", at:Date.now()});
+  d.track="";
+}
 function dutiesHTML(p){
   const all=p.duties||[], first=esc((p.name||"").split(" ")[0]), f=sel.dfilter||"all";
   const live=all.filter(d=>d.status!=="retired"), retired=all.filter(d=>d.status==="retired");
@@ -694,8 +723,8 @@ function dutiesHTML(p){
     <div class="tasks">
       <div class="tasks-head"><span>Task</span><span>How I'm tracking it</span></div>`;
   h += rows.map((d,i)=>{
-    const hl=d.health||"unset", ck=checkedCell(d);
-    return `<div class="task h-${hl} ${d.status==="paused"?"paused":""} ${isHit(d.text,d.id)||isHit(d.track,d.id)?"hit":""}">
+    migrateLog(d); const log=sortedLog(d), latest=log[log.length-1], hl=d.health||"unset", ck=checkedCell(d);
+    return `<div class="task h-${hl} ${d.status==="paused"?"paused":""} ${isHit(d.text,d.id)||log.some(l=>isHit(l.note,d.id))?"hit":""}">
       <span class="num">${i+1}</span>
       <div class="task-main">
         ${richEl("","d:"+d.id,"dedit",`data-id="${d.id}" aria-label="Task"`,d.text,"Describe the task")}
@@ -707,14 +736,28 @@ function dutiesHTML(p){
       </div>
       <div class="trackbox h-${hl}">
         <div class="tb-head">
-          <select class="tt-sel health h-${hl}" data-act="dhealth" data-id="${d.id}" aria-label="Status">${Object.entries(SHORT_HEALTH).map(([k,v])=>`<option value="${k}" ${hl===k?"selected":""}>${v}</option>`).join("")}</select>
+          <span class="tag ${HTAG[hl]}">${SHORT_HEALTH[hl]}</span>
           <select class="tb-method" data-act="dmethod" data-id="${d.id}" aria-label="Tracking method">${Object.entries(METHODS).map(([k,v])=>`<option value="${k}" ${(d.method||"")===k?"selected":""}>${k===""?"Method…":v.replace(" (Bamboo, HubSpot, Aircall)","")}</option>`).join("")}</select>
         </div>
-        ${richEl("tb-note","tr:"+d.id,"dtrack",`data-id="${d.id}" aria-label="How I track it"`,d.track||"","How I check it, e.g. BambooHR every Thursday")}
-        <div class="tb-foot ${ck.stale&&d.checked?"stale":""}">
-          <span>Checked</span><input type="date" class="tb-date" data-act="dchecked" data-id="${d.id}" value="${esc(d.checked||"")}" aria-label="Last checked">
-          <button class="chip sm" data-act="dchecknow" data-id="${d.id}" title="Mark as checked today">✓ Today</button>
-        </div>
+        ${latest ? `<div class="tb-latest">
+            <div class="tb-when ${ck.stale?"stale":""}">${esc(fmtDate(latest.date))}<span>${esc(ck.txt==="Today"||ck.txt==="Yesterday"?ck.txt:"")}</span></div>
+            ${plain(latest.note)?`<div class="tb-note rich-view">${clean(latest.note)}</div>`:""}
+          </div>` : `<div class="tb-empty">No updates yet.</div>`}
+        ${logFor===d.id ? `<div class="tb-form">
+            <div class="tb-form-row">
+              <select data-k="lh:${d.id}" id="lh-${d.id}" aria-label="Status">${Object.entries(SHORT_HEALTH).filter(([k])=>k!=="unset").map(([k,v])=>`<option value="${k}" ${(hl==="unset"?"on_track":hl)===k?"selected":""}>${v}</option>`).join("")}</select>
+              <input type="date" id="ld-${d.id}" value="${todayISO()}" aria-label="Date">
+            </div>
+            ${richEl("","ln:"+d.id,"lognote",`data-id="${d.id}" aria-label="Update note"`,"","What did you see? e.g. 2 sick notes missing from Bamboo")}
+            <div class="tb-form-row"><button class="btn primary" data-act="logsave" data-id="${d.id}">Save update</button><button class="btn ghost" data-act="logcancel">Cancel</button></div>
+          </div>` : `<div class="tb-foot">
+            <button class="chip sm" data-act="logadd" data-id="${d.id}">+ Add update</button>
+            ${log.length>1?`<button class="chip sm" data-act="loghist" data-id="${d.id}" aria-expanded="${histFor===d.id}">${histFor===d.id?"Hide history":`History (${log.length-1})`}</button>`:""}
+          </div>`}
+        ${histFor===d.id && log.length>1 ? `<ol class="tb-hist">${log.slice(0,-1).reverse().map(l=>`<li>
+            <div class="tb-hist-top"><span class="mono">${esc(fmtDate(l.date))}</span><span class="tag ${HTAG[l.health||"unset"]}">${SHORT_HEALTH[l.health||"unset"]}</span>
+              <button class="x" data-act="logdel" data-id="${d.id}" data-lid="${l.id}" aria-label="Delete this update">✕</button></div>
+            ${plain(l.note)?`<div class="rich-view">${clean(l.note)}</div>`:""}</li>`).join("")}</ol>` : ""}
       </div>
     </div>`;
   }).join("") || `<div class="task"><span></span><div class="empty">${all.length?"Nothing matches this filter.":`No tasks yet. Add ${first}'s first one below.`}</div></div>`;
@@ -838,7 +881,7 @@ function runSearch(){
   }
   for (const [tid2,tm] of Object.entries(team)){
     if (has(tm.name)) hits.push({pid:tid2,mid:null,date:"",tag:"person",id:null,text:tm.name,area:"team",who:tm.name});
-    (tm.duties||[]).forEach(d=>{ if(has(d.text)||has(d.track)) hits.push({pid:tid2,mid:null,date:"",tag:"duty",id:d.id,text:d.text,area:"team",who:tm.name}); });
+    (tm.duties||[]).forEach(d=>{ if(has(d.text)||has(d.track)||(d.log||[]).some(l=>has(l.note))) hits.push({pid:tid2,mid:null,date:"",tag:"duty",id:d.id,text:d.text,area:"team",who:tm.name}); });
   }
   hits.sort((a,b)=>(b.date||"9999").localeCompare(a.date||"9999"));
   const TAGS={agenda:"Agenda",agreed:"Agreed",note:"Note",action:"Action",queue:"For next 1:1",duty:"Responsibility"};
@@ -866,18 +909,31 @@ document.addEventListener("click", async e=>{
     $("#results").hidden=true; confirmDel=null; recapOpen=false; remember(); render();
     const el=document.querySelector(".hit"); if(el) el.scrollIntoView({block:"center",behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"}); return; }
   const ab=e.target.closest("[data-area]"); if(ab){ sel.area=ab.dataset.area; confirmDel=null; adding=null; clearHit(); remember(); render(); return; }
-  const tb=e.target.closest("[data-member]"); if(tb){ sel.member=tb.dataset.member; sel.dfilter="all"; openDuty=null; confirmDel=null; clearHit(); remember(); render(); return; }
+  const tb=e.target.closest("[data-member]"); if(tb){ sel.member=tb.dataset.member; sel.dfilter="all"; openDuty=null; logFor=null; histFor=null; confirmDel=null; clearHit(); remember(); render(); return; }
   const pb=e.target.closest("[data-person]"); if(pb){ sel.person=pb.dataset.person; sel.meeting=null; sel.tab="ones"; confirmDel=null; recapOpen=false; adding=null; clearHit(); remember(); render(); return; }
   const mb=e.target.closest("[data-meeting]"); if(mb){ sel.meeting=mb.dataset.meeting; sel.tab="ones"; confirmDel=null; recapOpen=false; adding=null; clearHit(); remember(); render(); if(innerWidth<=760) $("#main").scrollIntoView({block:"start"}); return; }
   const b=e.target.closest("[data-act]"); if(!b) return;
   const act=b.dataset.act, id=b.dataset.id, tid=b.dataset.tid, mid=b.dataset.mid;
-  if (act!=="delPerson" && act!=="delMeeting" && act!=="ddel" && act!=="delMember") confirmDel=null;
+  if (act!=="delPerson" && act!=="delMeeting" && act!=="ddel" && act!=="delMember" && act!=="logdel") confirmDel=null;
   if (act==="startAdd"){ adding={tid,kind:b.dataset.kind}; render(); }
   else if (act==="cancelAdd"){ adding=null; render(); }
   else if (act==="okind"){ const o=getCont(M(),tid).outcomes.find(x=>x.id===id); o.kind=o.kind==="agreed"?"note":"agreed"; saveM(); render(); }
   else if (act==="odel"){ const c=getCont(M(),tid); c.outcomes=c.outcomes.filter(x=>x.id!==id); saveM(); render(); }
   else if (act==="tdel"){ M().topics=M().topics.filter(t=>t.id!==id); saveM(); render(); }
   else if (act==="park"){ const t=getCont(M(),tid); t.parked=!t.parked; if(t.parked){ addToQueue(t.text); toast("Added to next 1:1"); } saveM(); render(); }
+  else if (act==="logadd"){ logFor=id; histFor=null; render(); document.querySelector(`[data-k="ln:${id}"]`)?.focus(); }
+  else if (act==="logcancel"){ logFor=null; render(); }
+  else if (act==="loghist"){ histFor = histFor===id ? null : id; render(); }
+  else if (act==="logsave"){
+    const d=dutyById(DO(),id); if(!d) return; migrateLog(d);
+    const note=clean(document.querySelector(`[data-k="ln:${id}"]`)?.innerHTML||""), health=$("#lh-"+id).value, date=$("#ld-"+id).value||todayISO();
+    d.log.push({id:uid(), date, health, note, at:Date.now()}); syncFromLog(d);
+    logFor=null; saveDO(); render(); toast("Update saved");
+  }
+  else if (act==="logdel"){
+    if (confirmDel!=="l:"+b.dataset.lid){ confirmDel="l:"+b.dataset.lid; toast("Click ✕ again to delete this update"); return; }
+    confirmDel=null; const d=dutyById(DO(),id); d.log=(d.log||[]).filter(l=>l.id!==b.dataset.lid); syncFromLog(d); saveDO(); render();
+  }
   else if (act==="dopen"){ openDuty = openDuty===id ? null : id; render(); }
   else if (act==="dfilter"){ sel.dfilter = (sel.dfilter===b.dataset.f && b.dataset.f!=="all") ? "all" : b.dataset.f; openDuty=null; remember(); render(); }
   else if (act==="dchecknow"){ const d=dutyById(DO(),id); d.checked=todayISO(); saveDO(); render(); toast("Marked as checked today"); }
